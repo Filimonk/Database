@@ -1,5 +1,3 @@
-// Названия могут быть длиной не больше (MAX_NAME_SIZE - 1)
-
 //#include <sys/types.h>
 #include <cstring>
 #include <string>
@@ -30,24 +28,22 @@ public:
         
     private:
         bool status_;
-        std::string error_; // возможно стоит переделать на char[const (исходя из размера максимальной ошибки)]
-                            // и добавить noexcept для set-ов 
+        std::string error_; 
+                           
     };
     
     Database() = default;
     ~Database() = default;
 
-    executionResult execute(std::string&);
+    executionResult execute(const std::string&);
 
 private:
-    static executionResult lastExecutionResult;
-    
-    static const size_t MAX_NAME_SIZE = 21;
+    static inline executionResult lastExecutionResult;
     
     enum class types {INT32, BOOL, STR, BYTES};
     
     struct cell {
-        char cellName[MAX_NAME_SIZE];
+        std::string cellName;
         types type;
         size_t size;
         
@@ -58,7 +54,7 @@ private:
     
     class row {
     public:
-        row(std::vector <cell> &);
+        row(const std::vector <cell> &);
         row() = delete;
         
         ~row() {
@@ -75,14 +71,14 @@ private:
         /* Атрибуты, выводящиеся из базовых */
         size_t sizeOfRow;
         std::vector <size_t> cellStartAddress;
-        std::map <char[MAX_NAME_SIZE], size_t> cellNameToIndex;
+        std::map <std::string, size_t> cellNameToIndex;
         
     };
     
-    std::map <char[MAX_NAME_SIZE], row> baseTablesRows;
-    std::map <char[MAX_NAME_SIZE], std::vector <row> > tables;
+    std::map <std::string, row> baseTablesRows;
+    std::map <std::string, std::vector <row> > tables;
 
-    void createTable(char[MAX_NAME_SIZE], std::vector <cell> &, std::vector <char*> &) noexcept;
+    void createTable(const std::string&, const std::vector <cell> &, const std::vector <char*> &) noexcept;
     
 };
 
