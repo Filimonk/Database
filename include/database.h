@@ -1,8 +1,10 @@
 //#include <sys/types.h>
-#include <cstring>
+//#include <cstring>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <map>
+#include <string>
 
 #ifndef DATABASE
 #define DATABASE
@@ -12,6 +14,8 @@ namespace memdb {
 
 
 
+void findAndBorderAll(std::string&, const std::string&);
+    
 class Database {
 public:
     
@@ -35,7 +39,7 @@ public:
     Database() = default;
     ~Database() = default;
 
-    executionResult execute(const std::string&);
+    executionResult execute(std::string);
 
 private:
     static inline executionResult lastExecutionResult;
@@ -55,6 +59,7 @@ private:
     class row {
     public:
         row(const std::vector <cell> &);
+        row(const row&);
         row() = delete;
         
         ~row() {
@@ -63,9 +68,10 @@ private:
         
         char* getBegin() const noexcept { return rowData; }
         
+        std::vector <cell> columnsDescription_;
+        
     private:
         /* Основные (базовые) атрибуты строки конкретной таблицы */
-        std::vector <cell> columnsDescription_;
         char* rowData = nullptr;
         
         /* Атрибуты, выводящиеся из базовых */
@@ -79,6 +85,10 @@ private:
     std::map <std::string, std::vector <row> > tables;
 
     void createTable(const std::string&, const std::vector <cell> &, const std::vector <char*> &) noexcept;
+    void insert(const std::string& nameTable, const std::vector <char*> &values) noexcept;
+    void select(const std::string& nameTable, const std::vector <char*> &values) noexcept;
+    void update(const std::string& nameTable, const std::vector <char*> &values) noexcept;
+    void deleteRows(const std::string& nameTable, const std::vector <char*> &values) noexcept;
     
 };
 

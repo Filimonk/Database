@@ -1,0 +1,48 @@
+PROGRAM_NAME = a
+
+
+CC = g++
+
+GFLAGS = -Wall -Wextra -Wuninitialized -Wunused-variable -Wunused-function -Wunused-parameter -Wshadow -Wconversion -Wstrict-aliasing -Wformat-security -Wlogical-op -Wfloat-equal -g -O0 -fno-sanitize-recover=all -fsanitize=address,undefined,leak
+
+START_STRING = \#ifndef DO_NOT_INCLUDE_SYS_LIBS
+END_STRING = \#endif \/\/ DO_NOT_INCLUDE_SYS_LIBS
+
+PATH_TO_BUILD_DIR = ./BuildCpp
+
+.PHONY: all send clean
+
+all: ${PATH_TO_BUILD_DIR}/${PROGRAM_NAME}.out send
+	@echo 'Запуск программы'
+	${PATH_TO_BUILD_DIR}/${PROGRAM_NAME}.out
+	@echo
+
+${PATH_TO_BUILD_DIR}/${PROGRAM_NAME}.out: ${PROGRAM_NAME}.cpp
+	@echo 'Компиляция программы'
+	$(CC) $(GFLAGS) $< -o $@ -I ~/AlgorithmsAndDataStructuresLibrary/*/include 
+	@echo
+
+send: ${PATH_TO_BUILD_DIR}/send_${PROGRAM_NAME}.cpp
+	@echo 'Обновление папки "RecentCpp" (добавление туда отправочного файла)'
+	mkdir -p $(HOME)/RecentCpp
+	rm -f -r $(HOME)/RecentCpp/*
+	ln -f -s $(CURDIR)/$< $(HOME)/RecentCpp/send_${PROGRAM_NAME}.cpp
+	@echo
+
+${PATH_TO_BUILD_DIR}/send_${PROGRAM_NAME}.cpp: ${PROGRAM_NAME}.cpp
+	@echo 'Частичный препроцессинг и раскритие библиотеки алгоритмов и структур данных'
+	sed -n '/${START_STRING}/,/${END_STRING}/{//!p;}' $< > $@
+	
+	$(CC) -E -O0 -D DO_NOT_INCLUDE_SYS_LIBS $< -o ${PATH_TO_BUILD_DIR}/.send_$<.temp \
+				 -I ~/AlgorithmsAndDataStructuresLibrary/*/include
+		               
+	
+	sed -i /^\#.*$$/d ${PATH_TO_BUILD_DIR}/.send_$<.temp
+	
+	cat ${PATH_TO_BUILD_DIR}/.send_$<.temp >> $@
+	rm -f ${PATH_TO_BUILD_DIR}/.send_$<.temp
+	@echo
+
+clean:
+	rm -rf ${PATH_TO_BUILD_DIR}/${PROGRAM_NAME}.out ${PATH_TO_BUILD_DIR}/send_${PROGRAM_NAME}.cpp
+
