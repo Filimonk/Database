@@ -1,4 +1,4 @@
-PROGRAM_NAME = a
+PROGRAM_NAME = test
 
 
 CC = g++
