@@ -13,11 +13,18 @@ using namespace std;
  
 void solve() {
     memdb::Database db;
+    auto result = db.execute("create table users ({key, autoincrement} id : int32, {unique} login: string[32], password_hash: bytes[8], is_admin: bool =)");
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
 }
 
 int32_t main() {
-ios::sync_with_stdio(false);
-cin.tie(0);
+//ios::sync_with_stdio(false);
+//cin.tie(0);
 
 //freopen("input.txt", "r", stdin);
 
