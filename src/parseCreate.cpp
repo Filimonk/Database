@@ -40,7 +40,6 @@ void Database::parseCreate(std::stringstream& request,
         lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
         return;
     }
-    std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
     while (word != ")") {
         if (word == "{" && descriptionConstructionCounter == 0) {
             if (!(request >> word)) {
@@ -79,7 +78,6 @@ void Database::parseCreate(std::stringstream& request,
                 lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
                 return;
             }
-            std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
             descriptionConstructionCounter = 1;
         }
         else if (descriptionConstructionCounter == 0) {
@@ -101,6 +99,8 @@ void Database::parseCreate(std::stringstream& request,
             }
         }
         else if (descriptionConstructionCounter == 3) {
+            std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
+            
             if (word == "int32") {
                 newCell.type = types::INT32;
                 newCell.size = 4;
@@ -143,7 +143,6 @@ void Database::parseCreate(std::stringstream& request,
                     lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
                     return;
                 }
-                std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
             }
             else {
                 try {
@@ -171,7 +170,6 @@ void Database::parseCreate(std::stringstream& request,
             lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
             return;
         }
-        std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
         ++descriptionConstructionCounter;
     }
     

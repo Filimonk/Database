@@ -61,9 +61,10 @@ private:
     class row {
     public:
         row(const std::vector <cell> &);
-        row(const row&);
+        row(const row*);
         
         row() = delete;
+        row(const row&) = delete;
         row& operator=(const row&) = delete;
         
         ~row() {
@@ -72,11 +73,8 @@ private:
         
         char* getBegin() const noexcept { return rowData; }
         
-        cell getCell(const size_t index) const { return columnsDescription_[index]; }
-        cell getCell(const std::string& nameCell) const { 
-            size_t index = (*(cellNameToIndex.find(nameCell))).second;
-            return columnsDescription_[index]; 
-        }
+        cell getCell(const size_t) const noexcept;
+        cell getCell(const std::string&) const noexcept;
         
     private:
         /* Основные (базовые) атрибуты строки конкретной таблицы */
@@ -85,7 +83,6 @@ private:
         
         /* Атрибуты, выводящиеся из базовых */
         size_t sizeOfRow;
-        // std::vector <size_t> cellStartAddress; // кажется, это никогда не понадобится
         std::map <std::string, size_t> cellNameToIndex;
         
     };
@@ -95,12 +92,15 @@ private:
 
     size_t getSize(std::stringstream&) const noexcept;
     char* getValue(std::stringstream&, types, size_t) const noexcept;
+    void getValues(std::stringstream&, std::vector <char*> &, const row* const) const noexcept;
+    
     void parseCreate(std::stringstream&, std::string&, std::vector <cell> &, std::vector <char*> &) const noexcept;
-
-    void parseCreate(std::stringstream&, std::vector <cell> &, std::vector <char*> &) const noexcept;
     void createTable(const std::string&, const std::vector <cell> &, const std::vector <char*> &) noexcept;
     
-    void insert(const std::string& nameTable, const std::vector <char*> &values) noexcept;
+    void parseInsert(std::stringstream&, std::string&, std::vector <char*> &) const noexcept;
+    void insert(const std::string&, const std::vector <char*> &) noexcept;
+    
+    
     void select(const std::string& nameTable, const std::vector <char*> &values) noexcept;
     void update(const std::string& nameTable, const std::vector <char*> &values) noexcept;
     void deleteRows(const std::string& nameTable, const std::vector <char*> &values) noexcept;
@@ -112,7 +112,8 @@ private:
 } // memdb
 
 #include "../src/database.cpp"
-#include "../src/parseCreate.cpp"
 #include "../src/commonParse.cpp"
+#include "../src/parseCreate.cpp"
+#include "../src/parseInsert.cpp"
 
 #endif // DATABASE

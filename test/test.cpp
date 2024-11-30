@@ -13,7 +13,44 @@ using namespace std;
  
 void solve() {
     memdb::Database db;
-    auto result = db.execute("create table users ({key, autoincrement} id : int32, {unique} login: string[32], password_hash: bytes[8], is_admin: bool =)");
+    auto result = db.execute("create table users ({key, autoincrement} id : int32, {unique} login: string[32], password_hash: bytes[8], is_admin: bool = false)");
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    result = db.execute("insert (,\"vasya\", 0xdeadbeefdeadbeef) to users");
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    result = db.execute("insert (login = \"vasya\", password_hash = 0xdeadbeefdeadbeef) to users");
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    result = db.execute("insert (,\"admin\", 0x0000000000000000, true) to users");
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    result = db.execute("insert ( \
+                            is_admin = true, \
+                            login = \"admin\", \
+                            password_hash = 0x0000000000000000 \
+                         ) to users");
+    
     if (result.is_ok()) {
         cout << "Ok\n";
     }

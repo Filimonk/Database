@@ -14,15 +14,6 @@ void findAndBorderAll(std::string& input, const std::string& replaceWord) {
     }
 }
 
-void Database::executionResult::setStatus(bool status, const std::string& error) {
-    status_ = status;
-    error_ = error;
-}
-
-void Database::executionResult::setStatus(const std::string& error) {
-    status_ = false;
-    error_ = error;
-}
 
 Database::~Database() {
     for (auto& pair_string_rowptr: baseTablesRows) {
@@ -36,41 +27,18 @@ Database::~Database() {
         }
     }
 }
-    
-Database::executionResult Database::execute(std::string query) {
-    lastExecutionResult.setStatus(true);
-    
-    std::vector <std::string> separators = {"(", ")", ",", "\"", "=", "{", "}", "[", "]", ":"};
-    for (auto separator: separators) {
-        findAndBorderAll(query, separator);
-    }
-    
-    std::stringstream requests{query};
-    for (std::string word = ""; requests >> word; ) {
-        std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (word == "create") {
-            std::string nameTable;
-            std::vector <cell> columnsDescription;
-            std::vector <char*> defaultValues;
-            
-            parseCreate(requests, nameTable, columnsDescription, defaultValues);
-            if (lastExecutionResult.is_ok() == false) {
-                for (size_t i{0}; i < defaultValues.size(); ++i) {
-                    delete[] defaultValues[i];
-                }
-                return lastExecutionResult;
-            }
-            
-            createTable(nameTable, columnsDescription, defaultValues);
-            
-            for (size_t i{0}; i < defaultValues.size(); ++i) {
-                delete[] defaultValues[i];
-            }
-        }
-    }
-    
-    return lastExecutionResult;
+
+
+void Database::executionResult::setStatus(bool status, const std::string& error) {
+    status_ = status;
+    error_ = error;
 }
+
+void Database::executionResult::setStatus(const std::string& error) {
+    status_ = false;
+    error_ = error;
+}
+    
 
 Database::row::row(const std::vector <cell> &columnsDescription) {
     columnsDescription_ = columnsDescription;
@@ -78,7 +46,6 @@ Database::row::row(const std::vector <cell> &columnsDescription) {
     
     for (size_t i{0}; i < columnsDescription.size(); ++i) {
         try {
-            // cellStartAddress.push_back(sizeOfRow); // кажется, это никогда не понадобится
             cellNameToIndex[columnsDescription[i].name] = i; 
         }
         catch (...) {
@@ -103,15 +70,14 @@ Database::row::row(const std::vector <cell> &columnsDescription) {
     }
 }
 
-Database::row::row(const row& other) {
+Database::row::row(const row* other) {
     try {
-        rowData = new char[other.sizeOfRow];
-        memcpy(rowData, other.rowData, other.sizeOfRow);
+        rowData = new char[other->sizeOfRow];
+        memcpy(rowData, other->rowData, other->sizeOfRow);
         
-        columnsDescription_ = other.columnsDescription_;
-        sizeOfRow = other.sizeOfRow;
-        // cellStartAddress = other.cellStartAddress; // кажется, это никогда не понадобится
-        cellNameToIndex = other.cellNameToIndex;
+        columnsDescription_ = other->columnsDescription_;
+        sizeOfRow = other->sizeOfRow;
+        cellNameToIndex = other->cellNameToIndex;
     }
     catch (...) {
         lastExecutionResult.setStatus(std::string{"Failed allocation mem for new row"});
@@ -121,6 +87,108 @@ Database::row::row(const row& other) {
         columnsDescription_[i].begin = rowData + shift;
         shift += columnsDescription_[i].size;
     }
+}
+
+Database::cell Database::row::getCell(const size_t index) const noexcept {
+    if (index < columnsDescription_.size()) {
+        return columnsDescription_[index];
+    }
+    else {
+        lastExecutionResult.setStatus(std::string{"An invalid cell is specified to receive"});
+        return cell{};
+    }
+}
+
+Database::cell Database::row::getCell(const std::string& nameCell) const noexcept {
+    size_t index;
+
+    try {
+        auto it = cellNameToIndex.find(nameCell);
+        if (it != cellNameToIndex.end()) {
+            index = (*it).second;
+        }
+        else {
+            lastExecutionResult.setStatus(std::string{"An invalid cell is specified to receive"});
+            return cell{};
+        }
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Failed to match the cell name to the index"});
+        return cell{};
+    }
+    
+    if (index < columnsDescription_.size()) {
+        return columnsDescription_[index];
+    }
+    else {
+        lastExecutionResult.setStatus(std::string{"An invalid cell is specified to receive"});
+        return cell{};
+    }
+}
+
+
+Database::executionResult Database::execute(std::string query) {
+    lastExecutionResult.setStatus(true);
+    
+    try {
+        std::vector <std::string> separators = {"(", ")", ",", "\"", "=", "{", "}", "[", "]", ":"};
+        for (auto separator: separators) {
+            findAndBorderAll(query, separator);
+        }
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Failed in the division into tokens"});
+        return lastExecutionResult;
+    }
+    
+    std::stringstream requests{query};
+    for (std::string word = ""; requests >> word; ) {
+        std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (word == "create") {
+            std::string nameTable;
+            std::vector <cell> columnsDescription;
+            std::vector <char*> defaultValues;
+            
+            parseCreate(requests, nameTable, columnsDescription, defaultValues);
+            if (lastExecutionResult.is_ok() == false) {
+                for (size_t i{0}; i < defaultValues.size(); ++i) {
+                    delete[] defaultValues[i];
+                }
+                return lastExecutionResult;
+            }
+            
+            createTable(nameTable, columnsDescription, defaultValues);
+            
+            for (size_t i{0}; i < defaultValues.size(); ++i) {
+                delete[] defaultValues[i];
+            }
+        }
+        else if (word == "insert") {
+            std::string nameTable;
+            std::vector <char*> values;
+            
+            parseInsert(requests, nameTable, values);
+            if (lastExecutionResult.is_ok() == false) {
+                for (size_t i{0}; i < values.size(); ++i) {
+                    delete[] values[i];
+                }
+                return lastExecutionResult;
+            }
+            
+            insert(nameTable, values);
+            
+            for (size_t i{0}; i < values.size(); ++i) {
+                delete[] values[i];
+            }
+
+        }
+        else {
+            lastExecutionResult.setStatus(std::string{"The command is not recognized"});
+            return lastExecutionResult;
+        }
+    }
+    
+    return lastExecutionResult;
 }
 
 void Database::createTable(const std::string& nameTable, 
@@ -161,32 +229,7 @@ void Database::createTable(const std::string& nameTable,
 }
 
 void Database::insert(const std::string& nameTable, const std::vector <char*> &values) noexcept {
-    row* newRow = new row{*(baseTablesRows[nameTable])};
-    
-    if (lastExecutionResult.is_ok() == false) return;
-
-    for (size_t i{0}; i < values.size(); ++i) {
-        if (values[i] != nullptr) {
-            try {
-                memcpy((newRow->getCell(i)).begin, values[i], (newRow->getCell(i)).size);
-            }
-            catch (...) {
-                lastExecutionResult.setStatus(std::string{"Failed setting value"});
-                return;
-            }
-        }
-    }
-    
-    try {
-        tables[nameTable].push_back(newRow);
-    }
-    catch (...) {
-        lastExecutionResult.setStatus(std::string{"Failed adding a row to a rows vector of table"});
-    }
-}
-
-void Database::select(const std::string& nameTable, const std::vector <char*> &values) noexcept {
-    row* newRow = new row{*(baseTablesRows[nameTable])};
+    row* newRow = new row{baseTablesRows[nameTable]};
     
     if (lastExecutionResult.is_ok() == false) return;
 
