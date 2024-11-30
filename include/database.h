@@ -101,9 +101,41 @@ private:
     void insert(const std::string&, const std::vector <char*> &) noexcept;
     
     
-    void select(const std::string& nameTable, const std::vector <char*> &values) noexcept;
-    void update(const std::string& nameTable, const std::vector <char*> &values) noexcept;
-    void deleteRows(const std::string& nameTable, const std::vector <char*> &values) noexcept;
+    class condition {
+    public:
+        condition();
+        ~condition(); // очищает константные значения ввиде Node.cell
+        
+        void insert(std::string&) noexcept;
+
+        bool chek(row*) const noexcept;
+        
+    private:
+        struct Node {
+            enum class NodesTypes {PLUS, MINUS, MUL, DEV, OST, LESS, EQUAL, MORE, NOTMORE, NOTLESS, NOTEQUAL, 
+                                   AND, OR, NOT, XOR, NON};
+            NodesTypes NodeType;
+            
+            Node* leftChild = nullptr;
+            Node* rightChild = nullptr;
+            
+            cell valueNode;
+        };
+        
+        Node* vertex = nullptr;
+        
+        void insert(Node*);
+
+    };
+    
+    void parseSelect(std::stringstream&, std::string&, std::vector <std::string> &, condition&) const noexcept;
+    void select(const std::string&, const std::vector <std::string> &, const condition&) noexcept;
+    
+    void parseUpdate(std::stringstream&, std::string&, std::vector <char*> &, condition&) const noexcept;
+    void update(const std::string&, const std::vector <char*> &, const condition&) noexcept;
+    
+    void parseDelete(std::stringstream&, std::string&, condition&) const noexcept;
+    void deleteRows(const std::string&, const condition&) noexcept;
     
 };
 

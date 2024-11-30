@@ -182,10 +182,23 @@ Database::executionResult Database::execute(std::string query) {
             }
 
         }
+        /*
+        else if (word == "select") {
+            std::string nameTable;
+            std::vector <std::string> columnsSelect;
+            condition conditionSelect;
+            
+            parseSelect(requests, nameTable, columnsSelect, conditionSelect);
+            if (lastExecutionResult.is_ok() == false) { return lastExecutionResult; }
+            
+            select(nameTable, columnsSelect, conditionSelect);
+            return lastExecutionResult;
+        }
         else {
             lastExecutionResult.setStatus(std::string{"The command is not recognized"});
             return lastExecutionResult;
         }
+        */
     }
     
     return lastExecutionResult;
@@ -252,6 +265,66 @@ void Database::insert(const std::string& nameTable, const std::vector <char*> &v
         lastExecutionResult.setStatus(std::string{"Failed adding a row to a rows vector of table"});
     }
 }
+
+/*
+void Database::select(const std::string& nameTable,
+                      const std::vector <std::string> &columnsSelect,
+                      const condition &conditionSelect) noexcept {
+    
+    std::vector <row*> &table = tables[nameTable];
+    //lastExecutionResult.createTempTable();
+
+    for (size_t i{0}; i < table.size(); ++i) {
+        if (conditionSelect.chek(table[i])) {
+            //lastExecutionResult.insert(table[i], columnsSelect);
+            if (lastExecutionResult.is_ok() == false) return;
+        }
+    }
+}
+
+void Database::update(const std::string& nameTable,
+                      const std::vector <char*> &values,
+                      const condition &conditionUpdate) noexcept {
+    
+    std::vector <row*> &table = tables[nameTable];
+
+    for (size_t j{0}; j < table.size(); ++j) {
+        if (conditionUpdate.chek(table[j])) {
+            row* newRow = table[j];
+            
+            for (size_t i{0}; i < values.size(); ++i) {
+                if (values[i] != nullptr) {
+                    try {
+                        memcpy((newRow->getCell(i)).begin, values[i], (newRow->getCell(i)).size);
+                    }
+                    catch (...) {
+                        lastExecutionResult.setStatus(std::string{"Failed setting value"});
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Database::deleteRows(const std::string& nameTable,
+                          const condition &conditionDelete) noexcept {
+    
+    std::vector <row*> &table = tables[nameTable];
+
+    for (size_t i{0}; i < table.size(); ++i) {
+        if (conditionDelete.chek(table[i])) {
+            try {
+                table.erase(table.begin() + i);
+            }
+            catch (...) {
+                lastExecutionResult.setStatus(std::string{"Failed delete the row"});
+                return;
+            }
+        }
+    }
+}
+*/
 
 
 
