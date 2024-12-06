@@ -47,6 +47,15 @@ void Database::parseInsert(std::stringstream& request,
         return;
     }
     
+    if (!(request >> word)) {
+        lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
+        return;
+    }
+    if (word != ";") {
+        lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
+        return;
+    }
+    
     auto it = baseTablesRows.find(nameTable);
     row* baseRow = (*it).second;
     

@@ -14,6 +14,31 @@ void findAndBorderAll(std::string& input, const std::string& replaceWord) {
     }
 }
 
+std::stringstream splittingRequests(const std::string& query) {
+    std::stringstream tempRequests{query};
+    std::stringstream splitRequests;
+
+    bool first = 1;
+    for (std::string word; tempRequests >> word; ) {
+        std::string word_cp = word;
+        std::transform(word_cp.begin(), word_cp.end(), word_cp.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (first == 0) {
+            if (word_cp == "create" ||
+                word_cp == "insert" ||
+                word_cp == "select" ||
+                word_cp == "update" ||
+                word_cp == "delete") {
+
+                splitRequests << ";";
+            }
+            
+            splitRequests << word;
+        }
+    }
+    
+    return splitRequests;
+}
+
 
 Database::~Database() {
     for (auto& pair_string_rowptr: baseTablesRows) {
@@ -141,7 +166,7 @@ Database::executionResult Database::execute(std::string query) {
         return lastExecutionResult;
     }
     
-    std::stringstream requests{query};
+    std::stringstream requests = splittingRequests(query);
     for (std::string word = ""; requests >> word; ) {
         std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
         if (word == "create") {

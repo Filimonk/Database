@@ -15,6 +15,7 @@ namespace memdb {
 
 
 void findAndBorderAll(std::string&, const std::string&);
+std::stringstream splittingRequests(const std::string&);
     
 class Database {
 public:
@@ -30,9 +31,19 @@ public:
         bool         is_ok() const noexcept { return status_; }
         std::string  what()  const noexcept { return error_;  }
         
+        /*
+        void createTempTable(const row* const baseRow, const std::vector <std::string> &columns);
+        void insert(const row* const currentRow);
+        */
+        
     private:
         bool status_;
         std::string error_; 
+        
+        /*
+        std::vector <size_t> indexes;
+        std::vector <row*> tempTable;
+        */
                            
     };
     
@@ -90,9 +101,13 @@ private:
     std::map <std::string, row*> baseTablesRows;
     std::map <std::string, std::vector <row*> > tables;
 
+    
+    /* Общие функции парсеров */
     size_t getSize(std::stringstream&) const noexcept;
     char* getValue(std::stringstream&, types, size_t) const noexcept;
     void getValues(std::stringstream&, std::vector <char*> &, const row* const) const noexcept;
+    /* ~~~~~~~~~~~~~~~~~~~~~~ */
+    
     
     void parseCreate(std::stringstream&, std::string&, std::vector <cell> &, std::vector <char*> &) const noexcept;
     void createTable(const std::string&, const std::vector <cell> &, const std::vector <char*> &) noexcept;

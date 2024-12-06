@@ -173,6 +173,15 @@ void Database::parseCreate(std::stringstream& request,
         ++descriptionConstructionCounter;
     }
     
+    if (!(request >> word)) {
+        lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
+        return;
+    }
+    if (word != ";") {
+        lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
+        return;
+    }
+    
     if (descriptionConstructionCounter == 4) {
         try {
             columnsDescription.push_back(newCell);
