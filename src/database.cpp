@@ -2,44 +2,6 @@ namespace memdb {
 
 
 
-void findAndBorderAll(std::string& input, const std::string& replaceWord) {
-    std::string replaceBy = " " + replaceWord + " ";
-    
-    size_t pos = input.find(replaceWord);
-    
-    while (pos != std::string::npos) {
-        input.replace(pos, replaceWord.size(), replaceBy);
-
-        pos = input.find(replaceWord, pos + replaceBy.size());
-    }
-}
-
-std::stringstream splittingRequests(const std::string& query) {
-    std::stringstream tempRequests{query};
-    std::stringstream splitRequests;
-
-    bool first = 1;
-    for (std::string word; tempRequests >> word; ) {
-        std::string word_cp = word;
-        std::transform(word_cp.begin(), word_cp.end(), word_cp.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (first == 0) {
-            if (word_cp == "create" ||
-                word_cp == "insert" ||
-                word_cp == "select" ||
-                word_cp == "update" ||
-                word_cp == "delete") {
-
-                splitRequests << ";";
-            }
-            
-            splitRequests << word;
-        }
-    }
-    
-    return splitRequests;
-}
-
-
 Database::~Database() {
     for (auto& pair_string_rowptr: baseTablesRows) {
         delete pair_string_rowptr.second;
@@ -54,14 +16,20 @@ Database::~Database() {
 }
 
 
-void Database::executionResult::setStatus(bool status, const std::string& error) {
+void Database::executionResult::setStatus(bool status, const std::string& error) noexcept {
     status_ = status;
-    error_ = error;
+    try {
+        error_ = error;
+    }
+    catch (...) {}
 }
 
-void Database::executionResult::setStatus(const std::string& error) {
+void Database::executionResult::setStatus(const std::string& error) noexcept {
     status_ = false;
-    error_ = error;
+    try {
+        error_ = error;
+    }
+    catch (...) {}
 }
     
 
@@ -152,83 +120,6 @@ Database::cell Database::row::getCell(const std::string& nameCell) const noexcep
 }
 
 
-Database::executionResult Database::execute(std::string query) {
-    lastExecutionResult.setStatus(true);
-    
-    try {
-        std::vector <std::string> separators = {"(", ")", ",", "\"", "=", "{", "}", "[", "]", ":"};
-        for (auto separator: separators) {
-            findAndBorderAll(query, separator);
-        }
-    }
-    catch (...) {
-        lastExecutionResult.setStatus(std::string{"Failed in the division into tokens"});
-        return lastExecutionResult;
-    }
-    
-    std::stringstream requests = splittingRequests(query);
-    for (std::string word = ""; requests >> word; ) {
-        std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (word == "create") {
-            std::string nameTable;
-            std::vector <cell> columnsDescription;
-            std::vector <char*> defaultValues;
-            
-            parseCreate(requests, nameTable, columnsDescription, defaultValues);
-            if (lastExecutionResult.is_ok() == false) {
-                for (size_t i{0}; i < defaultValues.size(); ++i) {
-                    delete[] defaultValues[i];
-                }
-                return lastExecutionResult;
-            }
-            
-            createTable(nameTable, columnsDescription, defaultValues);
-            
-            for (size_t i{0}; i < defaultValues.size(); ++i) {
-                delete[] defaultValues[i];
-            }
-        }
-        else if (word == "insert") {
-            std::string nameTable;
-            std::vector <char*> values;
-            
-            parseInsert(requests, nameTable, values);
-            if (lastExecutionResult.is_ok() == false) {
-                for (size_t i{0}; i < values.size(); ++i) {
-                    delete[] values[i];
-                }
-                return lastExecutionResult;
-            }
-            
-            insert(nameTable, values);
-            
-            for (size_t i{0}; i < values.size(); ++i) {
-                delete[] values[i];
-            }
-
-        }
-        /*
-        else if (word == "select") {
-            std::string nameTable;
-            std::vector <std::string> columnsSelect;
-            condition conditionSelect;
-            
-            parseSelect(requests, nameTable, columnsSelect, conditionSelect);
-            if (lastExecutionResult.is_ok() == false) { return lastExecutionResult; }
-            
-            select(nameTable, columnsSelect, conditionSelect);
-            return lastExecutionResult;
-        }
-        else {
-            lastExecutionResult.setStatus(std::string{"The command is not recognized"});
-            return lastExecutionResult;
-        }
-        */
-    }
-    
-    return lastExecutionResult;
-}
-
 void Database::createTable(const std::string& nameTable, 
                            const std::vector <cell> &columnsDescription,
                            const std::vector <char*> &defaultValues) noexcept {
@@ -291,22 +182,498 @@ void Database::insert(const std::string& nameTable, const std::vector <char*> &v
     }
 }
 
-/*
+
+void Database::condition::setOperator(std::string& operation) noexcept {
+    if (operation == "(") {
+        conditionType = conditionTypes::ROUND;
+    }
+    else if (operation == "|") {
+        conditionType = conditionTypes::DIRECT;
+    }
+    else if (operation == "+") {
+        conditionType = conditionTypes::PLUS;
+    }
+    else if (operation == "-") {
+        conditionType = conditionTypes::MINUS;
+    }
+    else if (operation == "*") {
+        conditionType = conditionTypes::MUL;
+    }
+    else if (operation == "/") {
+        conditionType = conditionTypes::DEV;
+    }
+    else if (operation == "%") {
+        conditionType = conditionTypes::MOD;
+    }
+    else if (operation == "<") {
+        conditionType = conditionTypes::LESS;
+    }
+    else if (operation == "=") {
+        conditionType = conditionTypes::EQUAL;
+    }
+    else if (operation == ">") {
+        conditionType = conditionTypes::MORE;
+    }
+    else if (operation == "<=") {
+        conditionType = conditionTypes::NOTMORE;
+    }
+    else if (operation == ">=") {
+        conditionType = conditionTypes::NOTLESS;
+    }
+    else if (operation == "!=") {
+        conditionType = conditionTypes::NOTEQUAL;
+    }
+    else if (operation == "&&") {
+        conditionType = conditionTypes::AND;
+    }
+    else if (operation == "||") {
+        conditionType = conditionTypes::OR;
+    }
+    else if (operation == "!") {
+        conditionType = conditionTypes::NOT;
+    }
+    else if (operation == "^^") {
+        conditionType = conditionTypes::XOR;
+    }
+}
+
+void Database::condition::setLeft(condition* child) noexcept {
+    leftChild = child;
+}
+
+void Database::condition::setRight(condition* child) noexcept {
+    rightChild = child;
+}
+
+void Database::condition::setConst(cell* cellValue) noexcept {
+    conditionType = conditionTypes::CONST;
+    value = cellValue;
+}
+
+void Database::condition::setVariable(std::string& name) noexcept {
+    conditionType = conditionTypes::VAR;
+    try {
+        nameCell = name;
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        return;
+    }
+}
+
+void Database::condition::descent(condition* vertex, const row* rowToCheck) noexcept {
+    switch (vertex->conditionType) {
+        case conditionTypes::CONST :
+            return;
+        case conditionTypes::VAR :
+            vertex->value = new cell{rowToCheck->getCell(vertex->nameCell)};
+            return;
+        default:
+            break;
+    }
+    
+    
+    descent(vertex->leftChild, rowToCheck);
+    if (lastExecutionResult.is_ok() == false) { return; }
+    descent(vertex->rightChild, rowToCheck);
+    if (lastExecutionResult.is_ok() == false) { return; }
+    
+    
+    if (((vertex->leftChild)->value == nullptr && vertex->conditionType != conditionTypes::NOT
+                                               && vertex->conditionType != conditionTypes::ROUND
+                                               && vertex->conditionType != conditionTypes::DIRECT ) ||
+        (vertex->rightChild)->value == nullptr) {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        return;
+    }
+    
+    cell leftVal = *((vertex->leftChild)->value);
+    cell rightVal = *((vertex->rightChild)->value);
+    
+    delete vertex->value;
+    vertex->value = nullptr;
+    vertex->value = new cell;
+    cell* val = vertex->value;
+    
+    try {
+        switch (vertex->conditionType) {
+            case conditionTypes::PLUS :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::INT32;
+                    val->size = 4;
+                    val->begin = new char[4];
+                    int* val_intptr = reinterpret_cast <int*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_intptr) = *(lval_intptr) + *(rval_intptr);
+                }
+                return;
+            case conditionTypes::MINUS :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::INT32;
+                    val->size = 4;
+                    val->begin = new char[4];
+                    int* val_intptr = reinterpret_cast <int*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_intptr) = *(lval_intptr) - *(rval_intptr);
+                }
+                return;
+            case conditionTypes::MUL :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::INT32;
+                    val->size = 4;
+                    val->begin = new char[4];
+                    int* val_intptr = reinterpret_cast <int*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_intptr) = *(lval_intptr) * *(rval_intptr);
+                }
+                return;
+            case conditionTypes::DEV :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::INT32;
+                    val->size = 4;
+                    val->begin = new char[4];
+                    int* val_intptr = reinterpret_cast <int*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    if ((*rval_intptr) == 0) {
+                        lastExecutionResult.setStatus(std::string{"The selection request is incorrect: division by zero"});
+                        delete vertex->value;
+                        vertex->value = nullptr;
+                        return;
+                    }
+                    *(val_intptr) = *(lval_intptr) / *(rval_intptr);
+                }
+                return;
+            case conditionTypes::MOD :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::INT32;
+                    val->size = 4;
+                    val->begin = new char[4];
+                    int* val_intptr = reinterpret_cast <int*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    if ((*rval_intptr) == 0) {
+                        lastExecutionResult.setStatus(std::string{"The selection request is incorrect: division by zero"});
+                        delete vertex->value;
+                        vertex->value = nullptr;
+                        return;
+                    }
+                    *(val_intptr) = *(lval_intptr) % *(rval_intptr);
+                }
+                return;
+            case conditionTypes::LESS :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_intptr) < *(rval_intptr));
+                }
+                return;
+            case conditionTypes::EQUAL :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_intptr) == *(rval_intptr));
+                }
+                return;
+            case conditionTypes::MORE :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_intptr) > *(rval_intptr));
+                }
+                return;
+            case conditionTypes::NOTMORE :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_intptr) <= *(rval_intptr));
+                }
+                return;
+            case conditionTypes::NOTLESS :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_intptr) >= *(rval_intptr));
+                }
+                return;
+            case conditionTypes::NOTEQUAL :
+                if (leftVal.type != types::INT32 || rightVal.type != types::INT32   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    int* lval_intptr = reinterpret_cast <int*> (leftVal.begin);
+                    int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_intptr) != *(rval_intptr));
+                }
+                return;
+            case conditionTypes::AND :
+                if (leftVal.type != types::BOOL || rightVal.type != types::BOOL   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    bool* lval_boolptr = reinterpret_cast <bool*> (leftVal.begin);
+                    bool* rval_boolptr = reinterpret_cast <bool*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_boolptr) && *(rval_boolptr));
+                }
+                return;
+            case conditionTypes::OR :
+                if (leftVal.type != types::BOOL || rightVal.type != types::BOOL   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    bool* lval_boolptr = reinterpret_cast <bool*> (leftVal.begin);
+                    bool* rval_boolptr = reinterpret_cast <bool*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_boolptr) || *(rval_boolptr));
+                }
+                return;
+            case conditionTypes::XOR :
+                if (leftVal.type != types::BOOL || rightVal.type != types::BOOL   ) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    bool* lval_boolptr = reinterpret_cast <bool*> (leftVal.begin);
+                    bool* rval_boolptr = reinterpret_cast <bool*> (rightVal.begin);
+                    *(val_boolptr) = (*(lval_boolptr) ^ *(rval_boolptr));
+                }
+                return;
+            case conditionTypes::NOT :
+                if (rightVal.type != types::BOOL) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::BOOL;
+                    val->size = 1;
+                    val->begin = new char[1];
+                    bool* val_boolptr = reinterpret_cast <bool*> (val->begin);
+                    bool* rval_boolptr = reinterpret_cast <bool*> (rightVal.begin);
+                    *(val_boolptr) = !(*(rval_boolptr));
+                }
+                return;
+            case conditionTypes::ROUND :
+                val->type = rightVal.type;
+                val->size = rightVal.size;
+                val->begin = new char[rightVal.size];
+                //char* val_charptr = val->begin;
+                //char* rval_charptr = rightVal.begin;
+                memcpy(val->begin, rightVal.begin, rightVal.size);
+                return;
+            case conditionTypes::DIRECT :
+                if (rightVal.type != types::STR || rightVal.type != types::BYTES) {
+                    lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                    delete vertex->value;
+                    vertex->value = nullptr;
+                    return;
+                }
+                else {
+                    val->type = types::INT32;
+                    val->size = 4;
+                    val->begin = new char[4];
+                    int* val_intptr = reinterpret_cast <int*> (val->begin);
+                    size_t len = rightVal.size;
+                    *(val_intptr) = static_cast <int> (len);
+                }
+                return;
+            default:
+                break;
+        }
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Memory for the cell value could not be allocated"});
+        delete vertex->value;
+        vertex->value = nullptr;
+        return;
+    }
+}
+
+bool Database::condition::check(const row* rowToCheck) noexcept {
+    descent(this, rowToCheck);
+    if (lastExecutionResult.is_ok() == false) return false;
+    
+    if ((this->value)->type != types::BOOL) {
+        lastExecutionResult.setStatus(std::string{"The condition is incorrect"});
+        return false;
+    }
+    else {
+        return *((this->value)->begin);
+    }
+}
+
+
+void Database::executionResult::createTempTable(const row* const baseRow, const std::vector <std::string> &columns) noexcept {
+    delete baseRowOfTempTable;
+    tempTable.clear();
+    
+    std::vector <cell> columnsDescription;
+    for (size_t i{0}; i < columns.size(); ++i) {
+        cell newCell = baseRow->getCell(columns[i]);
+        if (lastExecutionResult.is_ok() == false) return;
+        
+        try {
+            columnsDescription.push_back(newCell);
+        }
+        catch (...) {
+            lastExecutionResult.setStatus(std::string{"The temporary table cannot be created"});
+            return;
+        }
+    }
+    
+    try {
+        baseRowOfTempTable = new row{columnsDescription};
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"The temporary table cannot be created"});
+        return;
+    }
+}
+
+void Database::executionResult::insert(const row* const currentRow, const std::vector <std::string> &columns) noexcept {
+    row* newRow = new row{baseRowOfTempTable};
+    if (lastExecutionResult.is_ok() == false) return;
+
+    for (size_t i{0}; i < columns.size(); ++i) {
+        memcpy((newRow->getCell(i)).begin, (currentRow->getCell(columns[i])).begin, (newRow->getCell(i)).size);
+    }
+    
+    try {
+        tempTable.push_back(newRow);
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Failed adding a row to a rows vector of temporary table"});
+    }
+}
+
 void Database::select(const std::string& nameTable,
                       const std::vector <std::string> &columnsSelect,
-                      const condition &conditionSelect) noexcept {
+                      condition* const conditionSelect) noexcept {
     
     std::vector <row*> &table = tables[nameTable];
-    //lastExecutionResult.createTempTable();
+    lastExecutionResult.createTempTable(baseTablesRows[nameTable], columnsSelect);
+    if (lastExecutionResult.is_ok() == false) return;
 
     for (size_t i{0}; i < table.size(); ++i) {
-        if (conditionSelect.chek(table[i])) {
-            //lastExecutionResult.insert(table[i], columnsSelect);
+        if (conditionSelect->check(table[i])) {
+            if (lastExecutionResult.is_ok() == false) return;
+            lastExecutionResult.insert(table[i], columnsSelect);
             if (lastExecutionResult.is_ok() == false) return;
         }
     }
 }
 
+/*
 void Database::update(const std::string& nameTable,
                       const std::vector <char*> &values,
                       const condition &conditionUpdate) noexcept {

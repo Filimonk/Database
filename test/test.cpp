@@ -49,7 +49,16 @@ void solve() {
                             is_admin = true, \
                             login = \"admin\", \
                             password_hash = 0x0000000000000000 \
-                         ) to users");
+                         ) to users select id, login from users where is_admin || id < 10");
+    
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    result = db.execute("select id, login from users where is_admin || id < 10");
     
     if (result.is_ok()) {
         cout << "Ok\n";

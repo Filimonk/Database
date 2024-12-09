@@ -100,6 +100,10 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
             return nullptr;
         }
         while (word != "\"") {
+            if (value.size() != 0) {
+                value += " ";
+            }
+            
             value += word;
 
             if (!(request >> word)) {
@@ -140,6 +144,10 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
                 return nullptr;
             }
             while (word != "\"") {
+                if (value.size() != 0) {
+                    value += " ";
+                }
+            
                 value += word;
 
                 if (!(request >> word)) {
@@ -247,6 +255,9 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
             
             if (sizeSection) {
                 char* value = getValue(section, newCell.type, newCell.size);
+                if (lastExecutionResult.is_ok() == false) {
+                    return;
+                }
                 
                 try {
                     values.push_back(value);
@@ -286,6 +297,9 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
             }
             
             char* value = getValue(streamValues, newCell.type, newCell.size);
+            if (lastExecutionResult.is_ok() == false) {
+                return;
+            }
             
             try {
                 values.push_back(value);
@@ -299,6 +313,325 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
             if (lastExecutionResult.is_ok() == false) return; 
         }
     }
+}
+
+Database::condition* Database::getCondition(std::vector <std::string> &expression, size_t left, size_t right) const noexcept {
+    if (left == right) {
+        return nullptr;
+    }
+    
+    condition* result;
+    try {
+         result = new condition;
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        return nullptr;
+    }
+    
+    int balansOfRoundsBrackets = 0;
+    int balansOfDirectBrackets = 0;
+    
+    for (auto operation: operations) {
+        for (size_t i{left}; i < right; ++i) {
+            if (expression[i] == "(") {
+                ++balansOfRoundsBrackets;
+            }
+            if (expression[i] == ")") {
+                --balansOfRoundsBrackets;
+            }
+            
+            if (expression[i] == "|") {
+                balansOfDirectBrackets = (balansOfDirectBrackets + 1) % 2;
+            }
+            
+            
+            if (expression[i] == operation && balansOfRoundsBrackets == 0 && balansOfDirectBrackets == 0) {
+                result->setOperator(operation);
+                if (lastExecutionResult.is_ok() == false) {
+                    delete result;
+                    return nullptr;
+                }
+                    
+                if (operation == "!") {
+                    if (i != left) {
+                        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    condition* child = getCondition(expression, left + 1, right);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    result->setRight(child);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    return result;
+                }
+                else {
+                    condition* leftChild = getCondition(expression, left, i);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    condition* rightChild = getCondition(expression, i + 1, right);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    
+                    result->setLeft(leftChild);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    result->setRight(rightChild);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    return result;
+                }
+            }
+        }
+    }
+    
+    if (expression[left] == "(") {
+        if (expression[right - 1] != ")") { 
+            lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+            delete result;
+            return nullptr;
+        }
+        
+        result->setOperator(expression[left]);   
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+        
+        condition* child = getCondition(expression, left + 1, right - 1);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+        
+        result->setRight(child);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+        
+        return result;
+    }
+    
+    if (expression[left] == "|") {
+        if (expression[right - 1] != "|") { 
+            lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+            delete result;
+            return nullptr;
+        }
+        
+        result->setOperator(expression[left]);   
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+        
+        condition* child = getCondition(expression, left + 1, right - 1);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+        
+        result->setRight(child);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+        
+        return result;
+    }
+    
+        
+    std::stringstream value;
+    
+    if (expression[left] == "\"") {
+        if (expression[right - 1] != "\"") {
+            lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+            delete result;
+            return nullptr;
+        }
+        
+        size_t size{0};
+        for (size_t i{left}; i < right; ++i) {
+            try {
+                value << expression[i];
+            }
+            catch (...) {
+                lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+                delete result;
+                return nullptr;
+            }
+
+            if (i != left && i != right - 1) {
+                size += expression[i].size();
+            }
+        }
+        size += ((right - left - 1) - 1) + 1; // ((количество участков строки) - 1) = разрезов и +1 для \0
+        
+        char* value_ptr = getValue(value, types::STR, size);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+            
+        cell* cellValue;
+        try {
+            cellValue = new cell;
+        }
+        catch (...) {
+            lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
+            delete result;
+            return nullptr;
+        }
+        cellValue->type = types::STR;
+        cellValue->begin = value_ptr;
+        cellValue->size = size;
+        
+        result->setConst(cellValue);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+    }
+    else if (right - left == 1 && expression[left][0] == '0' && expression[left][1] == 'x') {
+        try {
+            value << expression[left];
+        }
+        catch (...) {
+            lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+            delete result;
+            return nullptr;
+        }
+        
+        size_t size{((expression[left].size() - 2) + 1) / 2 + 1}; // (количество символов) / 2 с округлением вверх = кол байт и +1 под \0
+        
+        char* value_ptr = getValue(value, types::BYTES, size);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+            
+        cell* cellValue;
+        try {
+            cellValue = new cell;
+        }
+        catch (...) {
+            lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
+            delete result;
+            return nullptr;
+        }
+        cellValue->type = types::BYTES;
+        cellValue->begin = value_ptr;
+        cellValue->size = size;
+        
+        result->setConst(cellValue);
+        if (lastExecutionResult.is_ok() == false) {
+            delete result;
+            return nullptr;
+        }
+    }
+    else if (right - left == 1) {
+        std::string &word = expression[left];
+        std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (word[0] == 't' || word[0] == 'f') {
+            value << expression[left];
+            
+            char* value_ptr = getValue(value, types::BOOL, 1);
+            if (lastExecutionResult.is_ok() == false) {
+                delete result;
+                return nullptr;
+            }
+            
+            cell* cellValue;
+            try {
+                cellValue = new cell;
+            }
+            catch (...) {
+                lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
+                delete result;
+                return nullptr;
+            }
+            cellValue->type = types::BOOL;
+            cellValue->begin = value_ptr;
+            cellValue->size = 1;
+            
+            result->setConst(cellValue);
+            if (lastExecutionResult.is_ok() == false) {
+                delete result;
+                delete cellValue;
+                return nullptr;
+            }
+        }
+        else {
+            for (auto letter: word) {
+                if (letter < '0' || letter > '9') {
+                    result->setVariable(expression[left]);
+                    if (lastExecutionResult.is_ok() == false) {
+                        delete result;
+                        return nullptr;
+                    }
+                    
+                    return result;
+                }
+            }
+            
+            value << expression[left];
+            
+            char* value_ptr = getValue(value, types::INT32, 4);
+            if (lastExecutionResult.is_ok() == false) {
+                delete result;
+                return nullptr;
+            }
+            
+            cell* cellValue;
+            try {
+                cellValue = new cell;
+            }
+            catch (...) {
+                lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
+                delete result;
+                return nullptr;
+            }
+            cellValue->type = types::INT32;
+            cellValue->begin = value_ptr;
+            cellValue->size = 4;
+            
+            result->setConst(cellValue);
+            if (lastExecutionResult.is_ok() == false) {
+                delete result;
+                delete cellValue;
+                return nullptr;
+            }
+        }
+    }
+    else {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        delete result;
+        return nullptr;
+    }
+    
+    return result;
 }
 
 

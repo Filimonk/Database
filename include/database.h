@@ -18,6 +18,9 @@ void findAndBorderAll(std::string&, const std::string&);
 std::stringstream splittingRequests(const std::string&);
     
 class Database {
+    
+    class row;
+
 public:
     
     class executionResult {
@@ -25,32 +28,29 @@ public:
         executionResult()  = default;
         ~executionResult() = default;
         
-        void setStatus(bool, const std::string& = "");
-        void setStatus(const std::string&);
+        void setStatus(bool, const std::string& = "") noexcept;
+        void setStatus(const std::string&) noexcept;
         
         bool         is_ok() const noexcept { return status_; }
         std::string  what()  const noexcept { return error_;  }
         
-        /*
-        void createTempTable(const row* const baseRow, const std::vector <std::string> &columns);
-        void insert(const row* const currentRow);
-        */
+        void createTempTable(const row* const baseRow, const std::vector <std::string> &columns) noexcept;
+        void insert(const row* const currentRow, const std::vector <std::string> &columns) noexcept;
+        //std::vector getTable() {}
         
     private:
         bool status_;
         std::string error_; 
         
-        /*
-        std::vector <size_t> indexes;
         std::vector <row*> tempTable;
-        */
+        row* baseRowOfTempTable;
                            
     };
     
     Database() = default;
     ~Database();
 
-    executionResult execute(std::string);
+    executionResult execute(std::string) noexcept;
 
 private:
     static inline executionResult lastExecutionResult;
@@ -87,6 +87,21 @@ private:
         cell getCell(const size_t) const noexcept;
         cell getCell(const std::string&) const noexcept;
         
+        /*
+        size_t getIndex(std::string& name) {
+            if (cellNameToIndex.find(name) != cellNameToIndex.end()) {
+                return cellNameToIndex[name];
+            }
+            else {
+                return -1;
+            }
+        }
+        
+        size_t getQuantity() const noexcept {
+            return columnsDescription_.size();
+        }
+        */
+        
     private:
         /* Основные (базовые) атрибуты строки конкретной таблицы */
         char* rowData = nullptr;
@@ -116,41 +131,61 @@ private:
     void insert(const std::string&, const std::vector <char*> &) noexcept;
     
     
+    std::vector <std::string> operations = { "||", "&&", "^^", "=", "!=", "<", "<=", ">", ">=", "+",
+                                             "-", "*", "/", "%", "!" };
+    
+    
     class condition {
     public:
-        condition();
-        ~condition(); // очищает константные значения ввиде Node.cell
+        condition() = default;
+        ~condition() {
+            if (leftChild != nullptr) {
+                delete leftChild;
+            }
+            if (rightChild != nullptr) {
+                delete rightChild;
+            }
+            
+            delete value;
+        } // очищает константные значения, представленные в виде cell
         
-        void insert(std::string&) noexcept;
+        void setOperator(std::string&) noexcept;
+        
+        void setLeft(condition*) noexcept;
+        void setRight(condition*) noexcept;
+        
+        void setConst(cell*) noexcept;
+        void setVariable(std::string&) noexcept;
 
-        bool chek(row*) const noexcept;
+        void descent(condition*, const row*) noexcept;
+        bool check(const row*) noexcept;
         
     private:
-        struct Node {
-            enum class NodesTypes {PLUS, MINUS, MUL, DEV, OST, LESS, EQUAL, MORE, NOTMORE, NOTLESS, NOTEQUAL, 
-                                   AND, OR, NOT, XOR, NON};
-            NodesTypes NodeType;
-            
-            Node* leftChild = nullptr;
-            Node* rightChild = nullptr;
-            
-            cell valueNode;
-        };
+        enum class conditionTypes {PLUS, MINUS, MUL, DEV, MOD, LESS, EQUAL, MORE, ROUND, DIRECT,
+                                   NOTMORE, NOTLESS, NOTEQUAL, AND, OR, NOT, XOR, CONST, VAR};
+        conditionTypes conditionType;
         
-        Node* vertex = nullptr;
+        condition* leftChild = nullptr;
+        condition* rightChild = nullptr;
         
-        void insert(Node*);
+        cell* value = nullptr;
+        std::string nameCell = "";
 
     };
     
-    void parseSelect(std::stringstream&, std::string&, std::vector <std::string> &, condition&) const noexcept;
-    void select(const std::string&, const std::vector <std::string> &, const condition&) noexcept;
+    condition* getCondition(std::vector <std::string> &, size_t, size_t) const noexcept;
     
-    void parseUpdate(std::stringstream&, std::string&, std::vector <char*> &, condition&) const noexcept;
-    void update(const std::string&, const std::vector <char*> &, const condition&) noexcept;
     
-    void parseDelete(std::stringstream&, std::string&, condition&) const noexcept;
-    void deleteRows(const std::string&, const condition&) noexcept;
+    void parseSelect(std::stringstream&, std::string&, std::vector <std::string> &, condition*&) const noexcept;
+    void select(const std::string&, const std::vector <std::string> &, condition* const) noexcept;
+    
+    /*
+    void parseUpdate(std::stringstream&, std::string&, std::vector <char*> &, condition*) const noexcept;
+    void update(const std::string&, const std::vector <char*> &, const condition*) noexcept;
+    
+    void parseDelete(std::stringstream&, std::string&, condition*) const noexcept;
+    void deleteRows(const std::string&, const condition*) noexcept;
+    */
     
 };
 
@@ -159,8 +194,10 @@ private:
 } // memdb
 
 #include "../src/database.cpp"
+#include "../src/execute.cpp"
 #include "../src/commonParse.cpp"
 #include "../src/parseCreate.cpp"
 #include "../src/parseInsert.cpp"
+#include "../src/parseSelect.cpp"
 
 #endif // DATABASE
