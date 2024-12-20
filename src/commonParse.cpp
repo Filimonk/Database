@@ -78,8 +78,9 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
             *(ret_boolptr) = false;
         }
         else {
+            delete[] ret;
             lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-            return ret;
+            return nullptr;
         }
     }
     else if (type == types::STR) {
@@ -126,8 +127,9 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
             *(ret + (size - 1)) = '\0';
         }
         catch (...) {
+            delete[] ret;
             lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-            return ret;
+            return nullptr;
         }
     }
     else if (type == types::BYTES) {
@@ -170,8 +172,9 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
                 *(ret + (size - 1)) = '\0';
             }
             catch (...) {
+                delete[] ret;
                 lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-                return ret;
+                return nullptr;
             }
         }
         else if (word.size() >= 2 && word[0] == '0' && word[1] == 'x') {
@@ -190,8 +193,9 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
                     word += '0';
                 }
                 catch (...) {
+                    delete[] ret;
                     lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-                    return ret;
+                    return nullptr;
                 }
             }
             
@@ -201,13 +205,23 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
                 char byte_char;
                 std::stringstream converter;
                 
-                if (!(converter << std::hex << byte_str)) {
-                    lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-                    return ret;
+                try {
+                    if (!(converter << std::hex << byte_str)) {
+                        delete[] ret;
+                        lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
+                        return nullptr;
+                    }
                 }
+                catch (...) {
+                    delete[] ret;
+                    lastExecutionResult.setStatus(std::string{"Failed in converting the byte in the create request"});
+                    return nullptr;
+                }
+                
                 if (!(converter >> byte_char)) {
+                    delete[] ret;
                     lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-                    return ret;
+                    return nullptr;
                 }
                 
                 *(ret + i) = byte_char;
@@ -223,14 +237,35 @@ char* Database::getValue(std::stringstream& request, types type, size_t size) co
 }
 
 void Database::getValues(std::stringstream& streamValues, std::vector <char*> &values, const row* const baseRow) const noexcept {
+    try {
+        values.assign(baseRow->getNumberOfCells(), nullptr);
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Failed to allocate dynamic memory for vector of values"});
+        return;
+    }
+    
     std::stringstream copy_streamValues;
-    for (std::string word = ""; streamValues >> word; copy_streamValues << word);
+    for (std::string word = ""; streamValues >> word; copy_streamValues << " " << word << " ");
+    
+    streamValues.clear();
+    streamValues.seekg(0);
+    streamValues.seekp(0);
 
     bool secondTypeList = 0;
     for (std::string word = ""; copy_streamValues >> word; ) {
         if (word == "=") {
             secondTypeList = 1;
-            break;
+        }
+        
+        try {
+            if (!(streamValues << " " << word << " ")) {
+                throw;
+            }
+        }
+        catch (...) {
+            lastExecutionResult.setStatus(std::string{"Failed in adding the word to streamValues in the insert request"});
+            return;
         }
     }
     
@@ -240,7 +275,7 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
             std::stringstream section;
             size_t sizeSection = 0;
             while (word != ",") {
-                section << word;
+                section << " " << word << " ";
 
                 if (!(streamValues >> word)) {
                     lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
@@ -259,22 +294,11 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
                     return;
                 }
                 
-                try {
-                    values.push_back(value);
-                } 
-                catch (...) {
-                    delete[] value;
-                    lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
-                    return;
+                if (i < values.size() && values[i] == nullptr) {
+                    values[i] = value;
                 }
-                
-                if (lastExecutionResult.is_ok() == false) return; 
-            }
-            else {
-                try {
-                    values.push_back(nullptr);
-                } 
-                catch (...) {
+                else {
+                    delete value;
                     lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
                     return;
                 }
@@ -283,7 +307,17 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
     }
     else {
         for (std::string word = ""; streamValues >> word; ) {
-            cell newCell = baseRow->getCell(word);
+            std::string nameCell;
+            try {
+                nameCell = word;
+            }
+            catch (...) {
+                lastExecutionResult.setStatus(std::string{"Cannot get a name"});
+                return;
+            }
+            
+            cell newCell = baseRow->getCell(nameCell);
+            
             if (lastExecutionResult.is_ok() == false) return; 
             
             if (!(streamValues >> word)) {
@@ -291,26 +325,34 @@ void Database::getValues(std::stringstream& streamValues, std::vector <char*> &v
                 return;
             }
             
-            if (word == "=") {
+            if (word != "=") {
                 lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
                 return;
             }
+            
+            size_t indexCellInRow = baseRow->getIndexByCellName(nameCell);
+            if (lastExecutionResult.is_ok() == false) { return; }
             
             char* value = getValue(streamValues, newCell.type, newCell.size);
-            if (lastExecutionResult.is_ok() == false) {
-                return;
-            }
+            if (lastExecutionResult.is_ok() == false) { return; }
             
-            try {
-                values.push_back(value);
-            } 
-            catch (...) {
-                delete[] value;
+            if (indexCellInRow < values.size() && values[indexCellInRow] == nullptr) {
+                values[indexCellInRow] = value;
+            }
+            else {
+                delete value;
                 lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
                 return;
             }
             
-            if (lastExecutionResult.is_ok() == false) return; 
+            if (!(streamValues >> word)) {
+                lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
+                return;
+            }
+            if (word != ",") {
+                lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
+                return;
+            }
         }
     }
 }
@@ -475,7 +517,7 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
         size_t size{0};
         for (size_t i{left}; i < right; ++i) {
             try {
-                value << expression[i];
+                value << " " << expression[i] << " ";
             }
             catch (...) {
                 lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
@@ -502,6 +544,7 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
         catch (...) {
             lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
             delete result;
+            delete[] value_ptr;
             return nullptr;
         }
         cellValue->type = types::STR;
@@ -509,10 +552,14 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
         cellValue->size = size;
         
         result->setConst(cellValue);
+        /*
         if (lastExecutionResult.is_ok() == false) {
             delete result;
+            delete[] value_ptr;
+            delete cellValue;
             return nullptr;
         }
+        */
     }
     else if (right - left == 1 && expression[left][0] == '0' && expression[left][1] == 'x') {
         try {
@@ -539,6 +586,7 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
         catch (...) {
             lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
             delete result;
+            delete[] value_ptr;
             return nullptr;
         }
         cellValue->type = types::BYTES;
@@ -546,15 +594,20 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
         cellValue->size = size;
         
         result->setConst(cellValue);
+        /*
         if (lastExecutionResult.is_ok() == false) {
             delete result;
+            delete[] value_ptr;
+            delete cellValue;
             return nullptr;
         }
+        */
     }
     else if (right - left == 1) {
         std::string &word = expression[left];
         std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (word[0] == 't' || word[0] == 'f') {
+        if ((word.size() == 4 && word[0] == 't' && word[1] == 'r' && word[2] == 'u' && word[3] == 'e') ||
+            (word.size() == 5 && word[0] == 'f' && word[1] == 'a' && word[2] == 'l' && word[3] == 's' &&  word[4] == 'e')) {
             value << expression[left];
             
             char* value_ptr = getValue(value, types::BOOL, 1);
@@ -570,6 +623,7 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
             catch (...) {
                 lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
                 delete result;
+                delete[] value_ptr;
                 return nullptr;
             }
             cellValue->type = types::BOOL;
@@ -577,11 +631,14 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
             cellValue->size = 1;
             
             result->setConst(cellValue);
+            /*
             if (lastExecutionResult.is_ok() == false) {
                 delete result;
+                delete[] value_ptr;
                 delete cellValue;
                 return nullptr;
             }
+            */
         }
         else {
             for (auto letter: word) {
@@ -611,6 +668,7 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
             catch (...) {
                 lastExecutionResult.setStatus(std::string{"Memory for the new cell was not allocated"});
                 delete result;
+                delete[] value_ptr;
                 return nullptr;
             }
             cellValue->type = types::INT32;
@@ -618,11 +676,14 @@ Database::condition* Database::getCondition(std::vector <std::string> &expressio
             cellValue->size = 4;
             
             result->setConst(cellValue);
+            /*
             if (lastExecutionResult.is_ok() == false) {
                 delete result;
+                delete[] value_ptr;
                 delete cellValue;
                 return nullptr;
             }
+            */
         }
     }
     else {

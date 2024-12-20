@@ -24,12 +24,35 @@ void Database::parseSelect(std::stringstream& request,
         return;
     }
     
-    while (word_cp != "from") {
+    if (word_cp == "from") {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect: there are no columns to select"});
+        return;
+    }
+    
+    try {
+        columnsSelect.push_back(word);
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Failed pushing the word to selecting vector"});
+        return;
+    }
+    
+    if (!(request >> word)) {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        return;
+    }
+    
+    while (word == ",") {
+        if (!(request >> word)) {
+            lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+            return;
+        }
+        
         try {
             columnsSelect.push_back(word);
         }
         catch (...) {
-            lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+            lastExecutionResult.setStatus(std::string{"Failed pushing the word to selecting vector"});
             return;
         }
         
@@ -39,13 +62,17 @@ void Database::parseSelect(std::stringstream& request,
         }
         
         try {
-            word_cp = word;
-            std::transform(word_cp.begin(), word_cp.end(), word_cp.begin(), [](unsigned char c) { return std::tolower(c); });
+            std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
         }
         catch (...) {
             lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
             return;
         }
+    }
+    
+    if (word != "from") {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        return;
     }
     
     if (!(request >> nameTable)) {

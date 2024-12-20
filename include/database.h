@@ -1,10 +1,9 @@
 //#include <sys/types.h>
-//#include <cstring>
 #include <iostream>
-#include <string>
 #include <vector>
 #include <map>
 #include <string>
+#include <cstring>
 
 #ifndef DATABASE
 #define DATABASE
@@ -25,8 +24,35 @@ public:
     
     class executionResult {
     public:
+        
+        /*
+        class iterator {
+        public:
+
+            iterator() = default;
+            ~iterator() = default;
+        
+            return 
+        }
+        */
+        
         executionResult()  = default;
-        ~executionResult() = default;
+        ~executionResult() = default; // если определять и писать без smart ptr, то необходимо
+                                      // будет еще писать конструктор копирования для execute
+        /*
+        void zeroing() {
+            baseRowOfTempTable = nullptr;
+            for (size_t i{0}; i < tempTable.size(); ++i) {
+                tempTable[i] = nullptr;
+            }
+        }
+        ~executionResult() {
+            delete baseRowOfTempTable;
+            for (auto currentRow: tempTable) {
+                delete currentRow;
+            }
+        }
+        */
         
         void setStatus(bool, const std::string& = "") noexcept;
         void setStatus(const std::string&) noexcept;
@@ -36,7 +62,9 @@ public:
         
         void createTempTable(const row* const baseRow, const std::vector <std::string> &columns) noexcept;
         void insert(const row* const currentRow, const std::vector <std::string> &columns) noexcept;
-        //std::vector getTable() {}
+        
+        std::vector<row*>::iterator begin() { return tempTable.begin(); }
+        std::vector<row*>::iterator end()   { return tempTable.end();   }
         
     private:
         bool status_;
@@ -51,6 +79,7 @@ public:
     ~Database();
 
     executionResult execute(std::string) noexcept;
+    //void recover() { lastExecutionResult.setStatus(true); }
 
 private:
     static inline executionResult lastExecutionResult;
@@ -61,16 +90,18 @@ private:
         size_t sizeName;
         std::string name;
         types type;
-        char* begin;
+        char* begin = nullptr;
         size_t size;
         
-        bool unique;
-        bool autoincrement;
-        bool key;
+        bool unique = false;
+        bool autoincrement = false;
+        bool key = false;
     };
     
     class row {
     public:
+        friend class Database;
+        
         row(const std::vector <cell> &);
         row(const row*);
         
@@ -82,25 +113,17 @@ private:
             delete[] rowData;
         }
         
-        char* getBegin() const noexcept { return rowData; }
+        size_t size() const noexcept { return columnsDescription_.size(); }
         
-        cell getCell(const size_t) const noexcept;
-        cell getCell(const std::string&) const noexcept;
-        
-        /*
-        size_t getIndex(std::string& name) {
-            if (cellNameToIndex.find(name) != cellNameToIndex.end()) {
-                return cellNameToIndex[name];
+        template<class T>
+        T get(const std::string& nameCol) const noexcept {
+            cell column = getCell(nameCol);
+            if (lastExecutionResult.is_ok() == false) {
+                lastExecutionResult.setStatus(true); // востановление состояния для дальнейшего получения ячеек
+                return nullptr; 
             }
-            else {
-                return -1;
-            }
+            return reinterpret_cast<T>(column.begin);
         }
-        
-        size_t getQuantity() const noexcept {
-            return columnsDescription_.size();
-        }
-        */
         
     private:
         /* Основные (базовые) атрибуты строки конкретной таблицы */
@@ -110,7 +133,16 @@ private:
         /* Атрибуты, выводящиеся из базовых */
         size_t sizeOfRow;
         std::map <std::string, size_t> cellNameToIndex;
+        /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
         
+        
+        char* getBegin() const noexcept { return rowData; }
+        size_t getNumberOfCells() const noexcept { return columnsDescription_.size(); }
+        size_t getIndexByCellName(const std::string&) const noexcept;
+        
+        cell getCell(const size_t) const noexcept;
+        cell getCell(const std::string&) const noexcept;
+
     };
     
     std::map <std::string, row*> baseTablesRows;
@@ -146,6 +178,9 @@ private:
                 delete rightChild;
             }
             
+            if (value != nullptr) {
+                delete[] value->begin;
+            }
             delete value;
         } // очищает константные значения, представленные в виде cell
         
@@ -157,6 +192,7 @@ private:
         void setConst(cell*) noexcept;
         void setVariable(std::string&) noexcept;
 
+        int cmp(cell&, cell&) const noexcept; // вспомогательная функция для сравнения велечин в descent
         void descent(condition*, const row*) noexcept;
         bool check(const row*) noexcept;
         

@@ -18,14 +18,23 @@ void Database::parseInsert(std::stringstream& request,
         return;
     }
     
-    std::stringstream streamValues;
+    std::stringstream streamValues; // отправляется в функцию getValues и должна содержать
+                                    // данные от ( до ) не включительно + ',' в конце
     
     if (!(request >> word)) {
         lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
         return;
     }
     while (word != ")") {
-        streamValues << word;
+        try {
+            if (!(streamValues << " " << word << " ")) {
+                throw;
+            }
+        }
+        catch (...) {
+            lastExecutionResult.setStatus(std::string{"Failed in adding the word to streamValues in the insert request"});
+            return;
+        }
 
         if (!(request >> word)) {
             lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
@@ -33,10 +42,22 @@ void Database::parseInsert(std::stringstream& request,
         }   
     }
     
+    try {
+        if (!(streamValues << " , ")) {
+            throw;
+        }
+    }
+    catch (...) {
+        lastExecutionResult.setStatus(std::string{"Failed in adding the word to streamValues in the insert request"});
+        return;
+    }
+    
+    
     if (!(request >> word)) {
         lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
         return;
     }
+    std::transform(word.begin(), word.end(), word.begin(), [](unsigned char c) { return std::tolower(c); });
     if (word != "to") {
         lastExecutionResult.setStatus(std::string{"The insert request is incorrect"});
         return;
@@ -57,6 +78,10 @@ void Database::parseInsert(std::stringstream& request,
     }
     
     auto it = baseTablesRows.find(nameTable);
+    if (it == baseTablesRows.end()) {
+        lastExecutionResult.setStatus(std::string{"The insert request is incorrect: the table wasn't found"});
+        return;
+    }
     row* baseRow = (*it).second;
     
     getValues(streamValues, values, baseRow);

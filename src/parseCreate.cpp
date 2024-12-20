@@ -128,6 +128,8 @@ void Database::parseCreate(std::stringstream& request,
             if (word == "=") {
                 char* value = getValue(request, newCell.type, newCell.size);
                 
+                if (lastExecutionResult.is_ok() == false) return; 
+                
                 try {
                     defaultValues.push_back(value);
                 } 
@@ -136,8 +138,6 @@ void Database::parseCreate(std::stringstream& request,
                     lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
                     return;
                 }
-                
-                if (lastExecutionResult.is_ok() == false) return; 
                 
                 if (!(request >> word)) {
                     lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
@@ -154,16 +154,32 @@ void Database::parseCreate(std::stringstream& request,
                 }
             }
             
+            try {
+                columnsDescription.push_back(newCell);
+            } 
+            catch (...) {
+                lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
+                return;
+            }
+            
             if (word == ")") {
                 break;
             }
             
             descriptionConstructionCounter = -1; 
             
+            newCell.unique = false;
+            newCell.autoincrement = false;
+            newCell.key = false;
+            
             if (word != ",") {
                 lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
                 return;
             }
+        }
+        else {
+            lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
+            return;
         }
         
         if (!(request >> word)) {
@@ -182,16 +198,7 @@ void Database::parseCreate(std::stringstream& request,
         return;
     }
     
-    if (descriptionConstructionCounter == 4) {
-        try {
-            columnsDescription.push_back(newCell);
-        } 
-        catch (...) {
-            lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
-            return;
-        }
-    }
-    else {
+    if (descriptionConstructionCounter != 4) {
         lastExecutionResult.setStatus(std::string{"The creation request is incorrect"});
         return;
     }
