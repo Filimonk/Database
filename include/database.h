@@ -53,6 +53,12 @@ public:
             }
         }
         */
+        void close() {
+            delete baseRowOfTempTable;
+            for (auto currentRow: tempTable) {
+                delete currentRow;
+            }
+        }
         
         void setStatus(bool, const std::string& = "") noexcept;
         void setStatus(const std::string&) noexcept;

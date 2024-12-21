@@ -346,11 +346,15 @@ void Database::condition::descent(condition* vertex, const row* rowToCheck) noex
         case conditionTypes::CONST :
             return;
         case conditionTypes::VAR : {
-            cell valueOfThisCell = rowToCheck->getCell(vertex->nameCell);
             if (vertex->value != nullptr) {
                 delete[] vertex->value->begin;
                 delete vertex->value;
+                vertex->value = nullptr;
             }
+            
+            cell valueOfThisCell = rowToCheck->getCell(vertex->nameCell);
+            if (lastExecutionResult.is_ok() == false) { return; }
+            
             vertex->value = new cell{valueOfThisCell};
             vertex->value->begin = new char[valueOfThisCell.size];
             memcpy(vertex->value->begin, valueOfThisCell.begin, valueOfThisCell.size);
@@ -369,10 +373,10 @@ void Database::condition::descent(condition* vertex, const row* rowToCheck) noex
     cell leftVal;
     cell rightVal; 
     
-    if ((vertex->leftChild == nullptr && vertex->conditionType != conditionTypes::NOT
-                                      && vertex->conditionType != conditionTypes::ROUND
-                                      && vertex->conditionType != conditionTypes::DIRECT ) ||
-        vertex->rightChild == nullptr) {
+    if (((vertex->leftChild == nullptr || vertex->leftChild->value == nullptr) && vertex->conditionType != conditionTypes::NOT
+                                                                               && vertex->conditionType != conditionTypes::ROUND
+                                                                               && vertex->conditionType != conditionTypes::DIRECT ) ||
+        vertex->rightChild == nullptr || vertex->rightChild->value == nullptr) {
         lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
         return;
     }
@@ -485,6 +489,7 @@ void Database::condition::descent(condition* vertex, const row* rowToCheck) noex
                     int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
                     if ((*rval_intptr) == 0) {
                         lastExecutionResult.setStatus(std::string{"The selection request is incorrect: division by zero"});
+                        delete[] vertex->value->begin;
                         delete vertex->value;
                         vertex->value = nullptr;
                         return;
@@ -509,6 +514,7 @@ void Database::condition::descent(condition* vertex, const row* rowToCheck) noex
                     int* rval_intptr = reinterpret_cast <int*> (rightVal.begin);
                     if ((*rval_intptr) == 0) {
                         lastExecutionResult.setStatus(std::string{"The selection request is incorrect: division by zero"});
+                        delete[] vertex->value->begin;
                         delete vertex->value;
                         vertex->value = nullptr;
                         return;
@@ -758,7 +764,7 @@ void Database::condition::descent(condition* vertex, const row* rowToCheck) noex
                 return;
             }
             case conditionTypes::DIRECT : {
-                if (rightVal.type != types::STR || rightVal.type != types::BYTES) {
+                if (rightVal.type != types::STR && rightVal.type != types::BYTES) {
                     lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
                     delete vertex->value;
                     vertex->value = nullptr;
@@ -769,7 +775,7 @@ void Database::condition::descent(condition* vertex, const row* rowToCheck) noex
                     val->size = 4;
                     val->begin = new char[4];
                     int* val_intptr = reinterpret_cast <int*> (val->begin);
-                    size_t len = rightVal.size - 1;
+                    size_t len = strlen(rightVal.begin);
                     *(val_intptr) = static_cast <int> (len);
                 }
                 return;

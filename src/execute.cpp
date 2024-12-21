@@ -10,17 +10,24 @@ void findAndBorderAll(std::string& input, const std::string& replaceWord) {
     while (pos != std::string::npos) {
         size_t shift;
         
-        if ((replaceWord != "|" || input[pos + 1] != '|') &&
-            (replaceWord != "!" || input[pos + 1] != '=') &&
-            (replaceWord != "<" || input[pos + 1] != '=') &&
-            (replaceWord != ">" || input[pos + 1] != '=') &&
-            (replaceWord != "<" || input[pos + 1] != '=') ) { ///////////////////////////
+        if ((replaceWord != "|" || pos == input.size()-1 || input[pos + 1] != '|') &&
+            (replaceWord != "!" || pos == input.size()-1 || input[pos + 1] != '=') &&
+            (replaceWord != "<" || pos == input.size()-1 || input[pos + 1] != '=') &&
+            (replaceWord != ">" || pos == input.size()-1 || input[pos + 1] != '=') &&
+            (replaceWord != "=" || pos == 0 || input[pos - 1] != '!') &&
+            (replaceWord != "=" || pos == 0 || input[pos - 1] != '<') &&
+            (replaceWord != "=" || pos == 0 || input[pos - 1] != '>') ) {
             
                 input.replace(pos, replaceWord.size(), replaceBy);
                 shift = replaceBy.size();
         }
         else {
-            shift = 2;
+            if (replaceWord != "=") {
+                shift = 2;
+            }
+            else {
+                shift = 1;
+            }
         }
 
         pos = input.find(replaceWord, pos + shift);
