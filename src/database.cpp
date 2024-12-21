@@ -895,16 +895,20 @@ void Database::update(const std::string& nameTable,
         }
     }
 }
+*/
 
 void Database::deleteRows(const std::string& nameTable,
-                          const condition &conditionDelete) noexcept {
+                          condition* const conditionDelete) noexcept {
     
     std::vector <row*> &table = tables[nameTable];
 
     for (size_t i{0}; i < table.size(); ++i) {
-        if (conditionDelete.chek(table[i])) {
+        if (conditionDelete->check(table[i])) {
             try {
+                if (lastExecutionResult.is_ok() == false) return;
+                delete table[i];
                 table.erase(table.begin() + i);
+                if (lastExecutionResult.is_ok() == false) return;
             }
             catch (...) {
                 lastExecutionResult.setStatus(std::string{"Failed delete the row"});
@@ -913,7 +917,6 @@ void Database::deleteRows(const std::string& nameTable,
         }
     }
 }
-*/
 
 
 

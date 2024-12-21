@@ -101,6 +101,11 @@ void Database::parseSelect(std::stringstream& request,
         }
     }
     
+    if (word != ";") {
+        lastExecutionResult.setStatus(std::string{"The selection request is incorrect"});
+        return;
+    }
+    
     conditionSelect = getCondition(expression, 0, expression.size());
 }
 

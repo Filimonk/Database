@@ -172,6 +172,24 @@ Database::executionResult Database::execute(std::string query) noexcept {
                 
                 delete conditionSelect;
             }
+            else if (word == "delete") {
+                std::string nameTable;
+                condition* conditionSelect = nullptr;
+                
+                parseDelete(requests, nameTable, conditionSelect);
+                if (lastExecutionResult.is_ok() == false) { 
+                    delete conditionSelect;
+                    return lastExecutionResult;
+                }
+                
+                deleteRows(nameTable, conditionSelect);
+                if (lastExecutionResult.is_ok() == false) { 
+                    delete conditionSelect;
+                    return lastExecutionResult;
+                }
+                
+                delete conditionSelect;
+            }
             else {
                 lastExecutionResult.setStatus(std::string{"The command is not recognized"});
                 return lastExecutionResult;

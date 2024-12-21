@@ -349,6 +349,32 @@ void solve() {
         cout << "\n";
     }
     
+    result = mydb.execute("deLETE first where is_admin && |login + \"abcd\"| = |login + text| \
+                           select id, login, text from first where TRue");
+    
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    for (auto& line: result) {
+        int* id = line->get<int*>("id");
+        if (id != nullptr) {
+            cout << *id << " ";
+        }
+        char* login = line->get<char*>("login");
+        if (login != nullptr) {
+            cout << login << " ";
+        }
+        char* text = line->get<char*>("text");
+        if (text != nullptr) {
+            cout << text << " ";
+        }
+        cout << "\n";
+    }
+    
     result.close();
 }
 

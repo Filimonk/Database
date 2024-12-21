@@ -224,10 +224,10 @@ private:
     /*
     void parseUpdate(std::stringstream&, std::string&, std::vector <char*> &, condition*) const noexcept;
     void update(const std::string&, const std::vector <char*> &, const condition*) noexcept;
-    
-    void parseDelete(std::stringstream&, std::string&, condition*) const noexcept;
-    void deleteRows(const std::string&, const condition*) noexcept;
     */
+    
+    void parseDelete(std::stringstream&, std::string&, condition*&) const noexcept;
+    void deleteRows(const std::string&, condition* const) noexcept;
     
 };
 
@@ -241,5 +241,7 @@ private:
 #include "../src/parseCreate.cpp"
 #include "../src/parseInsert.cpp"
 #include "../src/parseSelect.cpp"
+#include "../src/parseUpdate.cpp"
+#include "../src/parseDelete.cpp"
 
 #endif // DATABASE
