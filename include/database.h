@@ -13,8 +13,8 @@ namespace memdb {
 
 
 
-void findAndBorderAll(std::string&, const std::string&);
-std::stringstream splittingRequests(const std::string&);
+void findAndBorderAll(std::string&, const std::string&); // добавляет пробелы вокруг подстрок-разделителей (токенов)
+std::stringstream splittingRequests(const std::string&); // весь запрос делит на команды, ставя между ними " ; "
     
 class Database {
     
@@ -25,27 +25,10 @@ public:
     class executionResult {
     public:
         
-        /*
-        class iterator {
-        public:
-
-            iterator() = default;
-            ~iterator() = default;
-        
-            return 
-        }
-        */
-        
         executionResult()  = default;
         ~executionResult() = default; // если определять и писать без smart ptr, то необходимо
                                       // будет еще писать конструктор копирования для execute
         /*
-        void zeroing() {
-            baseRowOfTempTable = nullptr;
-            for (size_t i{0}; i < tempTable.size(); ++i) {
-                tempTable[i] = nullptr;
-            }
-        }
         ~executionResult() {
             delete baseRowOfTempTable;
             for (auto currentRow: tempTable) {
@@ -58,19 +41,20 @@ public:
             for (auto currentRow: tempTable) {
                 delete currentRow;
             }
-        }
+        } // функция закрытия (очещения динамической памяти временной таблицы). обязательно вызвать по окончании работы с БД
         
-        void setStatus(bool, const std::string& = "") noexcept;
-        void setStatus(const std::string&) noexcept;
+        void setStatus(bool, const std::string& = "") noexcept; // устанавливает статус и ошибку, если статус false
+        void setStatus(const std::string&) noexcept; // устанавливает статус и ошибку, если статус false
         
-        bool         is_ok() const noexcept { return status_; }
-        std::string  what()  const noexcept { return error_;  }
+        bool         is_ok() const noexcept { return status_; } // возвращает статус
+        std::string  what()  const noexcept { return error_;  } // возвращает ошибку
         
-        void createTempTable(const row* const baseRow, const std::vector <std::string> &columns) noexcept;
-        void insert(const row* const currentRow, const std::vector <std::string> &columns) noexcept;
+        void createTempTable(const row* const baseRow, const std::vector <std::string> &columns) noexcept; // создает временную таблицу
+        void insert(const row* const currentRow, const std::vector <std::string> &columns) noexcept; // вставляет строку во
+                                                                                                     // временную таблицу
         
-        std::vector<row*>::iterator begin() { return tempTable.begin(); }
-        std::vector<row*>::iterator end()   { return tempTable.end();   }
+        std::vector<row*>::iterator begin() { return tempTable.begin(); } // возвращает итератор на первую строку временной таблицы
+        std::vector<row*>::iterator end()   { return tempTable.end();   } // возвращает end-итератор временной таблицы
         
     private:
         bool status_;
@@ -84,8 +68,7 @@ public:
     Database() = default;
     ~Database();
 
-    executionResult execute(std::string) noexcept;
-    //void recover() { lastExecutionResult.setStatus(true); }
+    executionResult execute(std::string) noexcept; // функция для выполнения запросов
 
 private:
     static inline executionResult lastExecutionResult;
@@ -101,6 +84,7 @@ private:
         
         bool unique = false;
         bool autoincrement = false;
+        inline static size_t counter = 1;
         bool key = false;
     };
     
@@ -144,10 +128,10 @@ private:
         
         char* getBegin() const noexcept { return rowData; }
         size_t getNumberOfCells() const noexcept { return columnsDescription_.size(); }
-        size_t getIndexByCellName(const std::string&) const noexcept;
+        size_t getIndexByCellName(const std::string&) const noexcept; // получения индекса ячейки в строке по ее имени
         
-        cell getCell(const size_t) const noexcept;
-        cell getCell(const std::string&) const noexcept;
+        cell getCell(const size_t) const noexcept; // получение дефолтной копии ячейки
+        cell getCell(const std::string&) const noexcept; // получение дефолтной копии ячейки
 
     };
     
@@ -156,17 +140,20 @@ private:
 
     
     /* Общие функции парсеров */
-    size_t getSize(std::stringstream&) const noexcept;
-    char* getValue(std::stringstream&, types, size_t) const noexcept;
-    void getValues(std::stringstream&, std::vector <char*> &, const row* const) const noexcept;
+    size_t getSize(std::stringstream&) const noexcept; // получение размера заданного типа в байтах
+    char* getValue(std::stringstream&, types, size_t) const noexcept; // получение заданного значения ячейки
+    void getValues(std::stringstream&, std::vector <char*> &, const row* const) const noexcept; // получение списка значений
+                                                                                                // в 2х вариантах
     /* ~~~~~~~~~~~~~~~~~~~~~~ */
     
     
-    void parseCreate(std::stringstream&, std::string&, std::vector <cell> &, std::vector <char*> &) const noexcept;
-    void createTable(const std::string&, const std::vector <cell> &, const std::vector <char*> &) noexcept;
+    void parseCreate(std::stringstream&, std::string&, std::vector <cell> &, std::vector <char*> &) const noexcept; // распаршивание
+                                                                                                                    // запроса создания
+                                                                                                                    // таблицы
+    void createTable(const std::string&, const std::vector <cell> &, const std::vector <char*> &) noexcept; // создание таблицы
     
-    void parseInsert(std::stringstream&, std::string&, std::vector <char*> &) const noexcept;
-    void insert(const std::string&, const std::vector <char*> &) noexcept;
+    void parseInsert(std::stringstream&, std::string&, std::vector <char*> &) const noexcept; // распаршивание запроса вставки строки
+    void insert(const std::string&, const std::vector <char*> &) noexcept; // вставка строки
     
     
     std::vector <std::string> operations = { "||", "&&", "^^", "=", "!=", "<", "<=", ">", ">=", "+",
@@ -190,17 +177,17 @@ private:
             delete value;
         } // очищает константные значения, представленные в виде cell
         
-        void setOperator(std::string&) noexcept;
+        void setOperator(std::string&) noexcept; // установка в узел состояния оператора
         
-        void setLeft(condition*) noexcept;
-        void setRight(condition*) noexcept;
+        void setLeft(condition*) noexcept; // установка левого соседа
+        void setRight(condition*) noexcept; // установка правого соседа
         
-        void setConst(cell*) noexcept;
-        void setVariable(std::string&) noexcept;
+        void setConst(cell*) noexcept; // установка в узел состояния константы
+        void setVariable(std::string&) noexcept; // установка в узел состояния переменной
 
         int cmp(cell&, cell&) const noexcept; // вспомогательная функция для сравнения велечин в descent
-        void descent(condition*, const row*) noexcept;
-        bool check(const row*) noexcept;
+        void descent(condition*, const row*) noexcept; // рекурсивный спуск, который проверяет строку по выражению
+        bool check(const row*) noexcept; // проверка строки на выражение, вызывающая рекурсивный спуск descent
         
     private:
         enum class conditionTypes {PLUS, MINUS, MUL, DEV, MOD, LESS, EQUAL, MORE, ROUND, DIRECT,
@@ -215,19 +202,20 @@ private:
 
     };
     
-    condition* getCondition(std::vector <std::string> &, size_t, size_t) const noexcept;
+    condition* getCondition(std::vector <std::string> &, size_t, size_t) const noexcept; // получение из запроса дерево выражений
     
     
-    void parseSelect(std::stringstream&, std::string&, std::vector <std::string> &, condition*&) const noexcept;
-    void select(const std::string&, const std::vector <std::string> &, condition* const) noexcept;
+    void parseSelect(std::stringstream&, std::string&, std::vector <std::string> &, condition*&) const noexcept; // распаршивание
+                                                                                                                 // запроса select
+    void select(const std::string&, const std::vector <std::string> &, condition* const) noexcept; // выполнение запроса select
     
-    /*
-    void parseUpdate(std::stringstream&, std::string&, std::vector <char*> &, condition*) const noexcept;
-    void update(const std::string&, const std::vector <char*> &, const condition*) noexcept;
-    */
+    void parseUpdate(std::stringstream&, std::string&, std::vector <char*> &, condition*&) const noexcept; // распаршивание
+                                                                                                           // запроса update
+    void update(const std::string&, const std::vector <char*> &, condition* const) noexcept; // выполнение запроса update
     
-    void parseDelete(std::stringstream&, std::string&, condition*&) const noexcept;
-    void deleteRows(const std::string&, condition* const) noexcept;
+    void parseDelete(std::stringstream&, std::string&, condition*&) const noexcept; // распаршивание
+                                                                                    // запроса delete
+    void deleteRows(const std::string&, condition* const) noexcept; // выполнение запроса delete
     
 };
 
