@@ -172,23 +172,49 @@ Database::executionResult Database::execute(std::string query) noexcept {
                 
                 delete conditionSelect;
             }
+            else if (word == "update") {
+                std::string nameTable;
+                std::vector <char*> values;
+                condition* conditionUpdate = nullptr;
+                
+                parseUpdate(requests, nameTable, values, conditionUpdate);
+                if (lastExecutionResult.is_ok() == false) { 
+                    for (size_t i{0}; i < values.size(); ++i) {
+                        delete[] values[i];
+                    }
+                    delete conditionUpdate;
+                    return lastExecutionResult;
+                }
+                
+                update(nameTable, values, conditionUpdate);
+                if (lastExecutionResult.is_ok() == false) { 
+                    delete conditionUpdate;
+                    return lastExecutionResult;
+                }
+                
+                for (size_t i{0}; i < values.size(); ++i) {
+                    delete[] values[i];
+                }
+                
+                delete conditionUpdate;
+            }
             else if (word == "delete") {
                 std::string nameTable;
-                condition* conditionSelect = nullptr;
+                condition* conditionDelete = nullptr;
                 
-                parseDelete(requests, nameTable, conditionSelect);
+                parseDelete(requests, nameTable, conditionDelete);
                 if (lastExecutionResult.is_ok() == false) { 
-                    delete conditionSelect;
+                    delete conditionDelete;
                     return lastExecutionResult;
                 }
                 
-                deleteRows(nameTable, conditionSelect);
+                deleteRows(nameTable, conditionDelete);
                 if (lastExecutionResult.is_ok() == false) { 
-                    delete conditionSelect;
+                    delete conditionDelete;
                     return lastExecutionResult;
                 }
                 
-                delete conditionSelect;
+                delete conditionDelete;
             }
             else {
                 lastExecutionResult.setStatus(std::string{"The command is not recognized"});

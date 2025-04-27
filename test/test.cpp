@@ -11,7 +11,7 @@ using namespace std;
  
 void solve() {
     memdb::Database db;
-    auto result = db.execute("create table users ({key, autoincrement} id : int32 = 2, {unique} login: string[32], password_hash: bytes[8], is_admin: bool = false)");
+    auto result = db.execute("create table users ({key, autoincrement} id : int32, {unique} login: string[32], password_hash: bytes[8], is_admin: bool = false)");
     if (result.is_ok()) {
         cout << "Ok\n";
     }
@@ -19,7 +19,7 @@ void solve() {
         cout << "Bad\n" << result.what() << "\n";
     }
     
-    result = db.execute("insert (,\"vasya\", 0xdeadbeefdeadbeef) to users");
+    result = db.execute("insert (,\"vasya1\", 0xdeadbeefdeadbeef) to users");
     if (result.is_ok()) {
         cout << "Ok\n";
     }
@@ -27,7 +27,7 @@ void solve() {
         cout << "Bad\n" << result.what() << "\n";
     }
     
-    result = db.execute("insert (login = \"vasya\", password_hash = 0xdeadbeefdeadbeef) to users");
+    result = db.execute("insert (login = \"vasya2\", password_hash = 0xdeadbeefdeadbeef) to users");
     if (result.is_ok()) {
         cout << "Ok\n";
     }
@@ -35,7 +35,7 @@ void solve() {
         cout << "Bad\n" << result.what() << "\n";
     }
     
-    result = db.execute("insert (,\"admin\", 0x0000000000000000, true) to users");
+    result = db.execute("insert (,\"admin1\", 0x0000000000000000, true) to users");
     if (result.is_ok()) {
         cout << "Ok\n";
     }
@@ -350,6 +350,32 @@ void solve() {
     }
     
     result = mydb.execute("deLETE first where is_admin && |login + \"abcd\"| = |login + text| \
+                           select id, login, text from first where TRue");
+    
+    if (result.is_ok()) {
+        cout << "Ok\n";
+    }
+    else {
+        cout << "Bad\n" << result.what() << "\n";
+    }
+    
+    for (auto& line: result) {
+        int* id = line->get<int*>("id");
+        if (id != nullptr) {
+            cout << *id << " ";
+        }
+        char* login = line->get<char*>("login");
+        if (login != nullptr) {
+            cout << login << " ";
+        }
+        char* text = line->get<char*>("text");
+        if (text != nullptr) {
+            cout << text << " ";
+        }
+        cout << "\n";
+    }
+    
+    result = mydb.execute("Update first set text = \"aaaaa\" where |login| / 2 = 3 \
                            select id, login, text from first where TRue");
     
     if (result.is_ok()) {

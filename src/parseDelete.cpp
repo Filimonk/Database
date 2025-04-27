@@ -4,7 +4,7 @@ namespace memdb {
 
 void Database::parseDelete(std::stringstream& request,
                            std::string& nameTable,
-                           condition*& conditionSelect) const noexcept {
+                           condition*& conditionDelete) const noexcept {
     
     std::string word;
     
@@ -39,7 +39,7 @@ void Database::parseDelete(std::stringstream& request,
         return;
     }
     
-    conditionSelect = getCondition(expression, 0, expression.size());
+    conditionDelete = getCondition(expression, 0, expression.size());
 }
 
 

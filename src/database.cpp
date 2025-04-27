@@ -163,6 +163,9 @@ void Database::createTable(const std::string& nameTable,
     for (size_t i{0}; i < columnsDescription.size(); ++i) {
         if (defaultValues[i] != nullptr) {
             try {
+                cell currentCell = baseRow->getCell(i);
+                if (lastExecutionResult.is_ok() == false) { return; }
+                
                 memcpy((baseRow->getCell(i)).begin, defaultValues[i], (baseRow->getCell(i)).size);
             }
             catch (...) {
@@ -191,21 +194,37 @@ void Database::createTable(const std::string& nameTable,
 
 void Database::insert(const std::string& nameTable, const std::vector <char*> &values) noexcept {
     row* newRow = new row{baseTablesRows[nameTable]};
+    row* baseRow = baseTablesRows[nameTable];
     if (lastExecutionResult.is_ok() == false) return;
 
     for (size_t i{0}; i < values.size(); ++i) {
         if (values[i] != nullptr) {
             try {
+                cell currentCell = newRow->getCell(i);
+                if (lastExecutionResult.is_ok() == false) { return; }
+                
                 memcpy((newRow->getCell(i)).begin, values[i], (newRow->getCell(i)).size);
                 // добавляем окончание строки для считывания
                 if (((newRow->getCell(i)).type) == (types::STR) || ((newRow->getCell(i)).type) == (types::BYTES)) {
                     *((newRow->getCell(i)).begin + (newRow->getCell(i)).size - 1) = '\0';
                 }
+                
+                if (newRow->getCell(i).autoincrement == true) { ++(baseRow->getCell(i).counter); }
             }
             catch (...) {
                 delete newRow;
                 lastExecutionResult.setStatus(std::string{"Failed setting value"});
                 return;
+            }
+        }
+        else {
+            cell currentCell = newRow->getCell(i);
+            if (lastExecutionResult.is_ok() == false) { return; }
+            
+            if (newRow->getCell(i).autoincrement == true) {
+                int* int_ptr = reinterpret_cast <int*> (newRow->getCell(i).begin); 
+                *(int_ptr) = static_cast <int> (baseRow->getCell(i).counter);
+                ++(baseRow->getCell(i).counter);
             }
         }
     }
@@ -841,6 +860,9 @@ void Database::executionResult::insert(const row* const currentRow, const std::v
     if (lastExecutionResult.is_ok() == false) return;
 
     for (size_t i{0}; i < columns.size(); ++i) {
+        cell currentCell = newRow->getCell(i);
+        if (lastExecutionResult.is_ok() == false) { return; }
+                
         memcpy((newRow->getCell(i)).begin, (currentRow->getCell(columns[i])).begin, (newRow->getCell(i)).size);
     }
     
@@ -870,21 +892,26 @@ void Database::select(const std::string& nameTable,
     }
 }
 
-/*
 void Database::update(const std::string& nameTable,
                       const std::vector <char*> &values,
-                      const condition &conditionUpdate) noexcept {
+                      condition* const conditionUpdate) noexcept {
     
     std::vector <row*> &table = tables[nameTable];
 
     for (size_t j{0}; j < table.size(); ++j) {
-        if (conditionUpdate.chek(table[j])) {
+        if (conditionUpdate->check(table[j])) {
             row* newRow = table[j];
             
             for (size_t i{0}; i < values.size(); ++i) {
                 if (values[i] != nullptr) {
                     try {
-                        memcpy((newRow->getCell(i)).begin, values[i], (newRow->getCell(i)).size);
+                        cell currentCell = newRow->getCell(i);
+                        if (lastExecutionResult.is_ok() == false) { return; }
+                
+                        memcpy((newRow->getCell(i)).begin, values[i], std::min(strlen(values[i]), (newRow->getCell(i)).size - 1));
+                        if (newRow->getCell(i).type == types::STR || newRow->getCell(i).type == types::BYTES) {
+                            *(newRow->getCell(i).begin + std::min(strlen(values[i]), (newRow->getCell(i)).size - 1)) = '\0';
+                        }
                     }
                     catch (...) {
                         lastExecutionResult.setStatus(std::string{"Failed setting value"});
@@ -895,7 +922,6 @@ void Database::update(const std::string& nameTable,
         }
     }
 }
-*/
 
 void Database::deleteRows(const std::string& nameTable,
                           condition* const conditionDelete) noexcept {

@@ -60,8 +60,8 @@ public:
         bool status_;
         std::string error_; 
         
-        std::vector <row*> tempTable;
-        row* baseRowOfTempTable;
+        std::vector <row*> tempTable; // таблица, возвращаемая на запрос
+        row* baseRowOfTempTable; // макет строк этой таблицы
                            
     };
     
@@ -73,7 +73,7 @@ public:
 private:
     static inline executionResult lastExecutionResult;
     
-    enum class types {INT32, BOOL, STR, BYTES};
+    enum class types {INT32, BOOL, STR, BYTES}; // типы значений ячеек
     
     struct cell {
         size_t sizeName;
@@ -92,8 +92,8 @@ private:
     public:
         friend class Database;
         
-        row(const std::vector <cell> &);
-        row(const row*);
+        row(const std::vector <cell> &); // конструктор по массиву описаний
+        row(const row*); // конструктор копирования по указателю на строку
         
         row() = delete;
         row(const row&) = delete;
@@ -103,7 +103,7 @@ private:
             delete[] rowData;
         }
         
-        size_t size() const noexcept { return columnsDescription_.size(); }
+        size_t size() const noexcept { return columnsDescription_.size(); } // возвращает количество столбцов в строке
         
         template<class T>
         T get(const std::string& nameCol) const noexcept {
@@ -113,7 +113,7 @@ private:
                 return nullptr; 
             }
             return reinterpret_cast<T>(column.begin);
-        }
+        } // часть интерфейса - получение значения ячейки по имени
         
     private:
         /* Основные (базовые) атрибуты строки конкретной таблицы */
@@ -126,8 +126,8 @@ private:
         /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
         
         
-        char* getBegin() const noexcept { return rowData; }
-        size_t getNumberOfCells() const noexcept { return columnsDescription_.size(); }
+        char* getBegin() const noexcept { return rowData; } // получение указателя на начало значений строки
+        size_t getNumberOfCells() const noexcept { return columnsDescription_.size(); } // количество столбцов в строке
         size_t getIndexByCellName(const std::string&) const noexcept; // получения индекса ячейки в строке по ее имени
         
         cell getCell(const size_t) const noexcept; // получение дефолтной копии ячейки
@@ -135,8 +135,9 @@ private:
 
     };
     
-    std::map <std::string, row*> baseTablesRows;
-    std::map <std::string, std::vector <row*> > tables;
+    std::map <std::string, row*> baseTablesRows; // тут храняться все строки, которые получились из запросов create, на их
+                                                 // основе создаются другие строки таблиц
+    std::map <std::string, std::vector <row*> > tables; // тут храняться векторы строк - таблицы
 
     
     /* Общие функции парсеров */
@@ -157,7 +158,7 @@ private:
     
     
     std::vector <std::string> operations = { "||", "&&", "^^", "=", "!=", "<", "<=", ">", ">=", "+",
-                                             "-", "*", "/", "%", "!" };
+                                             "-", "*", "/", "%", "!" }; // всевозможные операторы выражений из запросов
     
     
     class condition {
